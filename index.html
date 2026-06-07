@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="tr" dir="ltr" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PhotoScanner Web</title>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:#f5f2eb; --panel:rgba(255,255,255,.78); --panel-2:rgba(255,255,255,.92); --text:#1f2624; --muted:#66706a;
+      --line:rgba(31,38,36,.12); --accent:#0d6d67; --accent-2:#093f43; --danger:#ae4d69; --ok:#3f7a2a;
+      --shadow:0 18px 45px rgba(0,0,0,.12); --radius:24px; --radius2:16px;
+    }
+    [data-theme="dark"] {
+      --bg:#141816; --panel:rgba(28,31,30,.78); --panel-2:rgba(35,38,37,.96); --text:#eef2ef; --muted:#9ba8a1;
+      --line:rgba(238,242,239,.12); --accent:#63c0b7; --accent-2:#8ad9d1; --danger:#f08ab0; --ok:#97d06f;
+      --shadow:0 24px 55px rgba(0,0,0,.36);
+    }
+    *{box-sizing:border-box} html,body{margin:0;min-height:100%} body{font-family:Inter,system-ui,Arial,sans-serif;background:radial-gradient(circle at top left, rgba(13,109,103,.09), transparent 35%), radial-gradient(circle at bottom right, rgba(151,112,44,.08), transparent 25%), var(--bg); color:var(--text)}
+    button,input{font:inherit}
+    .app{width:min(1500px,calc(100vw - 24px));margin:12px auto;display:grid;grid-template-columns:minmax(320px,1.5fr) minmax(320px,.95fr);gap:14px}
+    .panel{background:var(--panel);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .left,.right{padding:16px}.right{position:sticky;top:12px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+    .brand{display:flex;align-items:center;gap:12px;min-width:0}.logo{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;flex:0 0 auto}.brand h1{margin:0;font-size:1.5rem;line-height:1.05}.brand p{margin:4px 0 0;color:var(--muted);font-size:.95rem}
+    .top-actions{display:flex;align-items:center;gap:8px}
+    .lang-box{position:relative}.lang-trigger,.theme-btn{border:1px solid var(--line);background:var(--panel-2);color:var(--text);cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+    .theme-btn{width:46px;height:46px;border-radius:999px}.lang-trigger{height:46px;padding:0 12px;border-radius:999px;display:flex;align-items:center;gap:8px}.flag-badge{width:30px;height:30px;border-radius:999px;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--panel-2) 92%,transparent);font-size:1.15rem}
+    .lang-menu{position:absolute;top:calc(100% + 8px);right:0;width:210px;background:var(--panel-2);border:1px solid var(--line);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.22);padding:6px;display:none;z-index:20}.lang-menu.open{display:grid;gap:4px}.lang-option{width:100%;border:1px solid transparent;border-radius:12px;background:transparent;color:var(--text);padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;text-align:left}.lang-option.active,.lang-option:hover{background:color-mix(in srgb,var(--accent) 13%, var(--panel-2));border-color:color-mix(in srgb,var(--accent) 35%, var(--line))}
+    .lang-meta{display:flex;align-items:center;gap:10px}.lang-meta small{display:block;color:var(--muted)}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}.btn,.upload-label{border:none;border-radius:999px;padding:.84rem 1.08rem;min-height:44px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}.primary,.upload-label{background:var(--accent);color:#fff}.secondary{background:var(--panel-2);color:var(--text);border:1px solid var(--line)}.danger{background:color-mix(in srgb,var(--danger) 14%, var(--panel-2));color:var(--text);border:1px solid color-mix(in srgb,var(--danger) 30%, var(--line))}.btn:disabled{opacity:.45;cursor:not-allowed} input[type=file]{display:none}
+    .canvas-wrap{position:relative;overflow:hidden;border-radius:18px;border:1px solid var(--line);aspect-ratio:4/3;min-height:420px;background:linear-gradient(45deg, rgba(0,0,0,.04) 25%, transparent 25%, transparent 75%, rgba(0,0,0,.04) 75%), linear-gradient(45deg, rgba(0,0,0,.04) 25%, transparent 25%, transparent 75%, rgba(0,0,0,.04) 75%);background-position:0 0,12px 12px;background-size:24px 24px}
+    #editorCanvas{display:block;width:100%;height:100%;touch-action:none}
+    .hint{margin:10px 2px 0;color:var(--muted);font-size:.94rem}
+    .status-grid,.preview-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:12px}.card,.pill{border:1px solid var(--line);background:var(--panel-2);border-radius:16px;padding:12px 14px}.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}.value{font-weight:800;font-size:.95rem;word-break:break-word}
+    .group{margin-bottom:18px}.group:last-child{margin-bottom:0}.group h2{margin:0;font-size:1.18rem}.group p{margin:4px 0 0;color:var(--muted);font-size:.94rem}.group-head{margin-bottom:10px}
+    .preset-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.preset{width:100%;text-align:left;padding:12px;border-radius:14px;border:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer;min-height:70px}.preset.active{background:color-mix(in srgb,var(--accent) 14%,var(--panel-2));border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}.preset strong{display:block;margin-bottom:4px;font-size:.95rem}.preset span{display:block;color:var(--muted);font-size:.82rem;line-height:1.35}
+    .controls{display:grid;gap:12px}.control{display:grid;gap:5px}.control label{display:flex;justify-content:space-between;gap:10px;font-weight:700;font-size:.92rem}.control label span:last-child{color:var(--muted);font-variant-numeric:tabular-nums} input[type=range]{width:100%;accent-color:var(--accent)}
+    .step-note{padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--ok) 10%, var(--panel-2));border:1px solid color-mix(in srgb,var(--ok) 25%, var(--line));font-size:.92rem}
+    .exports{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.export-flow{display:grid;gap:12px}.export-step{display:none}.export-step.active{display:grid;gap:10px}.export-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.export-option{padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--panel-2);color:var(--text);text-align:left;cursor:pointer;transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease}.export-option:hover{transform:translateY(-1px);box-shadow:var(--shadow)}.export-option.active{border-color:transparent;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;box-shadow:0 14px 32px rgba(0,0,0,.16)}.export-option strong{display:block;font-size:.98rem;margin-bottom:4px}.export-option span{display:block;font-size:.84rem;opacity:.9}.export-actions{display:flex;gap:8px;flex-wrap:wrap}.export-summary{font-size:.92rem;color:var(--muted)}.loading-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,12,12,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:100;opacity:0;pointer-events:none;transition:opacity .18s ease}.loading-overlay.show{opacity:1;pointer-events:auto}.loading-card{min-width:min(92vw,340px);padding:20px;border-radius:20px;background:var(--panel-2);border:1px solid var(--line);box-shadow:var(--shadow);display:grid;justify-items:center;gap:12px;text-align:center}.spinner{width:42px;height:42px;border-radius:999px;border:4px solid color-mix(in srgb,var(--accent) 18%, transparent);border-top-color:var(--accent);animation:spin .9s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.loading-text{font-weight:800}.quality-note{margin-top:10px;background:color-mix(in srgb,var(--danger) 14%, var(--panel-2));border:1px solid color-mix(in srgb,var(--danger) 45%, var(--line));color:#b42318;font-weight:800}.mobile-filter-zone{display:none}
+    @media (max-width:1120px){.app{grid-template-columns:1fr}.right{position:static}}
+    @media (max-width:920px){.app{width:min(100vw - 10px,100%);margin:5px auto}.left,.right{padding:10px}.topbar{flex-wrap:wrap;align-items:flex-start}.top-actions{width:100%;justify-content:flex-end}.preset-grid,.exports,.export-options{grid-template-columns:1fr}.canvas-wrap{min-height:290px}.right{display:none}.mobile-filter-zone{display:none;margin-top:14px}.app.mobile-step-filter .mobile-filter-zone{display:block}.mobile-preset-grid{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(132px,1fr);gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}.mobile-preset-grid .preset{min-width:132px;min-height:64px}.mobile-advanced{margin-top:10px}.mobile-advanced summary{cursor:pointer;list-style:none;font-weight:800;color:var(--text);padding:12px 14px;border:1px solid var(--line);background:var(--panel-2);border-radius:14px}.mobile-advanced[open] summary{border-bottom-left-radius:10px;border-bottom-right-radius:10px;margin-bottom:8px}.mobile-export-head{margin-top:14px}.mobile-steps{display:none;gap:8px;margin:12px 0 0}.mobile-step-pill{flex:1;border:1px solid var(--line);background:var(--panel-2);color:var(--text);border-radius:999px;padding:10px 12px;font-weight:800;font-size:.84rem}.mobile-step-pill.active{background:var(--accent);color:#fff;border-color:transparent}.group{margin-bottom:14px}}
+  </style>
+</head>
+<body>
+  <main class="app" id="appRoot">
+    <section class="panel left">
+      <div class="topbar">
+        <div class="brand">
+          <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h9l3 3V18a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 4 18V6A2.5 2.5 0 0 1 6.5 3.5Z"/><path d="M15 3.5V7h3"/><path d="M8 11.2h8"/><path d="M8 15h8"/></svg>
+          </div>
+          <div>
+            <h1>PhotoScanner Web</h1>
+            <p id="brandSubtitle"></p>
+          </div>
+        </div>
+        <div class="top-actions">
+          <div class="lang-box">
+            <button class="lang-trigger" id="langTrigger" aria-haspopup="true" aria-expanded="false"><span class="flag-badge" id="langCurrentFlag">🇹🇷</span><span id="langCurrentCode">TR</span><span aria-hidden="true">▾</span></button>
+            <div class="lang-menu" id="langMenu"></div>
+          </div>
+          <button class="theme-btn" id="themeBtn" aria-label="theme"></button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="mobile-steps" id="mobileSteps">
+          <button type="button" class="mobile-step-pill" id="mobileStepUpload"></button>
+          <button type="button" class="mobile-step-pill" id="mobileStepCrop"></button>
+          <button type="button" class="mobile-step-pill" id="mobileStepFilter"></button>
+        </div>
+        <label class="upload-label" for="fileInput" id="uploadLabel"></label>
+        <input id="fileInput" type="file" accept="image/*" />
+        <button class="btn primary" id="cropBtn"></button>
+        <button class="btn secondary" id="recropBtn"></button>
+        <button class="btn danger" id="resetAllBtn"></button>
+      </div>
+      <div class="canvas-wrap" id="previewArea"><canvas id="editorCanvas"></canvas></div>
+      <p class="hint" id="canvasHint"></p>
+      <div class="step-note quality-note" id="previewQualityNote"></div>
+      <div class="status-grid">
+        <div class="card"><div class="label" id="sourceLabel"></div><div class="value" id="sourceInfo">—</div></div>
+        <div class="card"><div class="label" id="stageLabel"></div><div class="value" id="stageInfo">—</div></div>
+        <div class="card"><div class="label" id="outputLabel"></div><div class="value" id="outputInfo">—</div></div>
+      </div>
+      <section class="mobile-filter-zone" id="mobileFilterZone">
+        <div class="group-head"><h2 id="mobilePresetTitle"></h2><p id="mobilePresetDesc"></p></div>
+        <div class="card mobile-preset-grid" id="mobilePresetGrid"></div>
+        <button class="btn secondary" id="mobileResetFiltersBtn" style="margin-top:10px;width:100%"></button>
+        <details class="mobile-advanced" id="mobileAdvanced">
+          <summary id="mobileAdvancedSummary"></summary>
+          <div class="card controls" id="mobileControls"></div>
+        </details>
+        <div class="group-head mobile-export-head"><h2 id="mobileExportTitle"></h2><p id="mobileExportDesc"></p></div>
+        <div class="card export-flow" id="mobileExportFlow">
+          <div class="export-step active" id="mobileExportStepType">
+            <div class="export-options" id="mobileExportTypeOptions"></div>
+            <div class="step-note" id="mobileExportTypeHelp"></div>
+          </div>
+          <div class="export-step" id="mobileExportStepQuality">
+            <div class="export-options" id="mobileExportQualityOptions"></div>
+            <div class="export-summary" id="mobileExportSummary"></div>
+            <button class="btn primary" id="mobileExportConfirmBtn"></button>
+          </div>
+          <div class="step-note" id="mobileExportNote"></div>
+        </div>
+      </section>
+    </section>
+
+    <aside class="panel right">
+      <section class="group group-flow">
+        <div class="group-head"><h2 id="flowTitle"></h2><p id="flowDesc"></p></div>
+        <div class="step-note" id="flowNote"></div>
+      </section>
+
+      <section class="group group-presets">
+        <div class="group-head"><h2 id="presetTitle"></h2><p id="presetDesc"></p></div>
+        <div class="card preset-grid" id="presetGrid"></div>
+        <button class="btn secondary" id="resetFiltersBtn" style="margin-top:10px;width:100%"></button>
+      </section>
+
+      <section class="group group-controls">
+        <div class="group-head"><h2 id="controlsTitle"></h2><p id="controlsDesc"></p></div>
+        <div class="card controls" id="controls"></div>
+      </section>
+
+      <section class="group group-export">
+        <div class="group-head"><h2 id="exportTitle"></h2><p id="exportDesc"></p></div>
+        <div class="card export-flow" id="exportFlow">
+          <div class="export-step active" id="exportStepType">
+            <div class="export-options" id="exportTypeOptions"></div>
+            <div class="step-note" id="exportTypeHelp"></div>
+          </div>
+          <div class="export-step" id="exportStepQuality">
+            <div class="export-options" id="exportQualityOptions"></div>
+            <div class="export-summary" id="exportSummary"></div>
+            <button class="btn primary" id="exportConfirmBtn"></button>
+          </div>
+          <div class="step-note" id="exportNote"></div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <div class="loading-overlay" id="loadingOverlay" aria-hidden="true">
+    <div class="loading-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <div class="loading-text" id="loadingText"></div>
+    </div>
+  </div>
+
+<script>
+const i18n = {
+  tr:{langName:'Türkçe',code:'TR',flag:'🇹🇷',dir:'ltr',brandSubtitle:'Önce kırp, sonra kırpılmış görsel üzerinde filtre uygula ve indir.',upload:'Görsel seç',crop:'Kırp',recrop:'Kırpmayı yeniden düzenle',resetFilters:'Filtreleri sıfırla',resetAll:'Sıfırla',sourceLabel:'Orijinal çözünürlük',stageLabel:'Aşama',outputLabel:'Çıktı çözünürlüğü',flowTitle:'Nasıl çalışır',flowDesc:'Görseli seç, alanı kırp, filtre uygula ve indir.',flowCrop:'Görsel seçtikten sonra köşeleri düzenleyip kırp. Sonra filtreleri uygulayıp dosyayı indir.',stageCrop:'Kırpma',stageFilter:'Filtre',stageEmpty:'Bekleniyor',hintCrop:'4 köşeyi sürükleyerek belgeyi hizala. Mouse wheel ile zoom yapabilir, boş alandan sürükleyerek resmi kaydırabilir ve mobilde iki parmakla pinch zoom kullanabilirsin.',hintFilter:'Şu anda kırpılmış görseli görüyorsun. Filtreler bu görüntüye anlık uygulanır; mouse wheel ile zoom yapabilir ve boş alandan sürükleyerek gezebilirsin.',presetTitle:'Filtre modları',presetDesc:'Kırpılmış görsele hazır filtreler uygula.',controlsTitle:'İnce ayar',controlsDesc:'Parlaklık, kontrast, gama, doygunluk, netlik ve eşik ayarları.',exportTitle:'İndir',exportDesc:'Önce türü seç, sonra kaliteyi seç ve indir.',exportStart:'İndir',exportChooseType:'Dosya türü seç',exportChooseQuality:'Kalite seç',exportPng:'PNG',exportJpg:'JPEG',exportPdf:'PDF',exportBack:'Geri',exportConfirm:'İndir',exportNote:'Önce türü seç. Sonra kaliteyi seç. En alttaki indir butonu seçim tamamlanınca aktif olur.',exportTypeHelp:'',exportQualityLow:'Düşük',exportQualityMedium:'Orta',exportQualityHigh:'Yüksek',exportQualityLowHint:'Daha küçük dosya',exportQualityMediumHint:'Denge',exportQualityHighHint:'En iyi görünüm',exportSummaryPrefix:'Seçim',themeDark:'Karanlık moda geç',themeLight:'Aydınlık moda geç',control_brightness:'Parlaklık',control_contrast:'Kontrast',control_gamma:'Gamma',control_saturation:'Doygunluk',control_sharpen:'Netlik',control_threshold:'Eşik',preset_original_label:'Orijinal renk',preset_original_hint:'Doğal görünüm',preset_document_label:'Belge renk',preset_document_hint:'Kağıdı temizler, renkleri korur',preset_bw_label:'Siyah beyaz',preset_bw_hint:'Metin okunurluğu yüksek',preset_gray_label:'Gri ton',preset_gray_hint:'Daha yumuşak',preset_threshold_label:'S/B eşik',preset_threshold_hint:'Sert siyah-beyaz',preset_vivid_label:'Canlı renk',preset_vivid_hint:'Renkli dokümanlar için'},
+  en:{langName:'English',code:'EN',flag:'🇬🇧',dir:'ltr',brandSubtitle:'Crop first, then apply live filters on the cropped image and download.',upload:'Upload image',crop:'Crop',recrop:'Crop again',resetFilters:'Reset filters',resetAll:'Reset',sourceLabel:'Original resolution',stageLabel:'Stage',outputLabel:'Output resolution',flowTitle:'How it works',flowDesc:'Choose an image, crop the area, apply filters, and download.',flowCrop:'After selecting an image, adjust the corners and crop it. Then apply filters and download the file.',stageCrop:'Cropping',stageFilter:'Filtering',stageEmpty:'Waiting',hintCrop:'Drag the 4 corners to align the document. You can zoom with the mouse wheel, pan by dragging empty space, and use two-finger pinch zoom on mobile.',hintFilter:'You are now viewing the cropped image. Filters are applied live to this image; you can zoom with the mouse wheel and pan by dragging empty space.',presetTitle:'Filter modes',presetDesc:'Apply ready-made filters to the cropped image.',controlsTitle:'Fine tuning',controlsDesc:'Brightness, contrast, gamma, saturation, sharpen, and threshold controls.',exportTitle:'Download',exportDesc:'Download PNG, JPEG, or PDF while preserving quality.',exportPng:'Download PNG',exportJpg:'Download JPEG',exportPdf:'Download PDF',exportNote:'For the highest quality, use PNG or PDF. JPEG is lossy and better for smaller files.',themeDark:'Switch to dark mode',themeLight:'Switch to light mode',control_brightness:'Brightness',control_contrast:'Contrast',control_gamma:'Gamma',control_saturation:'Saturation',control_sharpen:'Sharpen',control_threshold:'Threshold',preset_original_label:'Original color',preset_original_hint:'Natural look',preset_document_label:'Document color',preset_document_hint:'Cleans paper and keeps colors',preset_bw_label:'Black & white',preset_bw_hint:'High text readability',preset_gray_label:'Grayscale',preset_gray_hint:'Softer result',preset_threshold_label:'B/W threshold',preset_threshold_hint:'Hard black and white',preset_vivid_label:'Vivid color',preset_vivid_hint:'For colorful documents'},
+  de:{langName:'Deutsch',code:'DE',flag:'🇩🇪',dir:'ltr',brandSubtitle:'Zuerst zuschneiden, dann Filter live auf das zugeschnittene Bild anwenden und herunterladen.',upload:'Bild hochladen',crop:'Zuschneiden',recrop:'Erneut zuschneiden',resetFilters:'Filter zurücksetzen',resetAll:'Zurücksetzen',sourceLabel:'Originalauflösung',stageLabel:'Phase',outputLabel:'Ausgabeauflösung',flowTitle:'So funktioniert es',flowDesc:'Bild wählen, Bereich zuschneiden, Filter anwenden und herunterladen.',flowCrop:'Nach dem Auswählen des Bildes die Ecken anpassen und zuschneiden. Danach Filter anwenden und die Datei herunterladen.',stageCrop:'Zuschneiden',stageFilter:'Filter',stageEmpty:'Warten',hintCrop:'Ziehe die 4 Ecken, um das Dokument auszurichten. Mit dem Mausrad kannst du zoomen, den freien Bereich ziehen und auf Mobilgeräten mit zwei Fingern pinch-zoomen.',hintFilter:'Jetzt siehst du das zugeschnittene Bild. Filter werden live auf dieses Bild angewendet; mit dem Mausrad kannst du zoomen und durch Ziehen verschieben.',presetTitle:'Filtermodi',presetDesc:'Fertige Filter für das zugeschnittene Bild.',controlsTitle:'Feineinstellung',controlsDesc:'Helligkeit, Kontrast, Gamma, Sättigung, Schärfe und Schwelle.',exportTitle:'Download',exportDesc:'PNG, JPEG oder PDF mit Qualitätsfokus herunterladen.',exportPng:'PNG laden',exportJpg:'JPEG laden',exportPdf:'PDF laden',exportNote:'Für die höchste Qualität nutze PNG oder PDF. JPEG ist verlustbehaftet und eher für kleinere Dateien geeignet.',themeDark:'Zum Dunkelmodus wechseln',themeLight:'Zum Hellmodus wechseln',control_brightness:'Helligkeit',control_contrast:'Kontrast',control_gamma:'Gamma',control_saturation:'Sättigung',control_sharpen:'Schärfe',control_threshold:'Schwelle',preset_original_label:'Originalfarbe',preset_original_hint:'Natürlicher Look',preset_document_label:'Dokumentfarbe',preset_document_hint:'Reinigt Papier und erhält Farben',preset_bw_label:'Schwarzweiß',preset_bw_hint:'Hohe Lesbarkeit',preset_gray_label:'Graustufen',preset_gray_hint:'Weicheres Ergebnis',preset_threshold_label:'S/W-Schwelle',preset_threshold_hint:'Hartes Schwarzweiß',preset_vivid_label:'Kräftige Farben',preset_vivid_hint:'Für farbige Dokumente'},
+  ar:{langName:'العربية',code:'AR',flag:'🇸🇦',dir:'rtl',brandSubtitle:'اقص أولاً، ثم طبّق الفلاتر مباشرة على الصورة المقصوصة وبعدها نزّلها.',upload:'رفع صورة',crop:'قص',recrop:'إعادة القص',resetFilters:'إعادة الفلاتر',resetAll:'إعادة تعيين',sourceLabel:'الدقة الأصلية',stageLabel:'المرحلة',outputLabel:'دقة الإخراج',flowTitle:'طريقة العمل',flowDesc:'اختر الصورة، قص المساحة، طبّق الفلاتر، ثم نزّل الملف.',flowCrop:'بعد اختيار الصورة، عدّل الزوايا ثم قصها. بعد ذلك طبّق الفلاتر ونزّل الملف.',stageCrop:'القص',stageFilter:'الفلاتر',stageEmpty:'انتظار',hintCrop:'اسحب الزوايا الأربع لمحاذاة المستند. يمكنك التكبير بعجلة الفأرة وتحريك الصورة من المساحة الفارغة واستخدام تكبير بإصبعين على الجوال.',hintFilter:'أنت الآن ترى الصورة المقصوصة. يتم تطبيق الفلاتر مباشرة على هذه الصورة، ويمكنك التكبير بعجلة الفأرة وتحريكها بالسحب.',presetTitle:'أوضاع الفلاتر',presetDesc:'طبّق فلاتر جاهزة على الصورة المقصوصة.',controlsTitle:'ضبط دقيق',controlsDesc:'السطوع والتباين وجاما والتشبع والحدة والعتبة.',exportTitle:'تنزيل',exportDesc:'نزّل PNG أو JPEG أو PDF مع الحفاظ على الجودة.',exportPng:'تنزيل PNG',exportJpg:'تنزيل JPEG',exportPdf:'تنزيل PDF',exportNote:'لأعلى جودة استخدم PNG أو PDF. تنسيق JPEG ضياعي ومناسب أكثر للملفات الأصغر.',themeDark:'التبديل إلى الوضع الداكن',themeLight:'التبديل إلى الوضع الفاتح',control_brightness:'السطوع',control_contrast:'التباين',control_gamma:'جاما',control_saturation:'التشبع',control_sharpen:'الحدة',control_threshold:'العتبة',preset_original_label:'ألوان أصلية',preset_original_hint:'مظهر طبيعي',preset_document_label:'ألوان المستند',preset_document_hint:'ينظف الورق ويحافظ على الألوان',preset_bw_label:'أبيض وأسود',preset_bw_hint:'وضوح عالٍ للنص',preset_gray_label:'تدرج رمادي',preset_gray_hint:'نتيجة أنعم',preset_threshold_label:'عتبة أبيض وأسود',preset_threshold_hint:'أبيض وأسود حاد',preset_vivid_label:'ألوان حية',preset_vivid_hint:'للمستندات الملونة'},
+  es:{langName:'Español',code:'ES',flag:'🇪🇸',dir:'ltr',brandSubtitle:'Primero recorta, luego aplica filtros en vivo sobre la imagen recortada y descárgala.',upload:'Subir imagen',crop:'Recortar',recrop:'Recortar otra vez',resetFilters:'Restablecer filtros',resetAll:'Restablecer',sourceLabel:'Resolución original',stageLabel:'Etapa',outputLabel:'Resolución de salida',flowTitle:'Flujo',flowDesc:'Primero selecciona el área del documento y luego edita el resultado recortado.',flowCrop:'1) Sube la imagen  2) Coloca las 4 esquinas  3) Pulsa Recortar  4) Aplica filtros sobre la imagen recortada  5) Descarga.',stageCrop:'Recorte',stageFilter:'Filtros',stageEmpty:'En espera',hintCrop:'Arrastra las 4 esquinas para alinear el documento. El punto activo muestra una lupa.',hintFilter:'Ahora estás viendo la imagen recortada. Los filtros se aplican en vivo a esta imagen.',presetTitle:'Modos de filtro',presetDesc:'Aplica filtros listos a la imagen recortada.',controlsTitle:'Ajuste fino',controlsDesc:'Controles de brillo, contraste, gamma, saturación, nitidez y umbral.',exportTitle:'Descargar',exportDesc:'Descarga PNG, JPEG o PDF conservando la calidad.',exportPng:'Descargar PNG',exportJpg:'Descargar JPEG',exportPdf:'Descargar PDF',exportNote:'PNG y PDF se generan priorizando la calidad. JPEG se exporta con alta calidad.',themeDark:'Cambiar a modo oscuro',themeLight:'Cambiar a modo claro',control_brightness:'Brillo',control_contrast:'Contraste',control_gamma:'Gamma',control_saturation:'Saturación',control_sharpen:'Nitidez',control_threshold:'Umbral',preset_original_label:'Color original',preset_original_hint:'Aspecto natural',preset_document_label:'Color de documento',preset_document_hint:'Limpia el papel y conserva los colores',preset_bw_label:'Blanco y negro',preset_bw_hint:'Alta legibilidad de texto',preset_gray_label:'Escala de grises',preset_gray_hint:'Resultado más suave',preset_threshold_label:'Umbral B/N',preset_threshold_hint:'Blanco y negro duro',preset_vivid_label:'Color intenso',preset_vivid_hint:'Para documentos coloridos'},
+  zh:{langName:'中文',code:'ZH',flag:'🇨🇳',dir:'ltr',brandSubtitle:'先裁剪，再在裁剪后的图像上实时应用滤镜并下载。',upload:'上传图片',crop:'裁剪',recrop:'重新裁剪',resetFilters:'重置滤镜',resetAll:'重置',sourceLabel:'原始分辨率',stageLabel:'阶段',outputLabel:'输出分辨率',flowTitle:'流程',flowDesc:'先选择文档区域，再编辑裁剪后的结果。',flowCrop:'1）上传图片  2）放置4个角点  3）点击裁剪  4）在裁剪后的图像上应用滤镜  5）下载。',stageCrop:'裁剪',stageFilter:'滤镜',stageEmpty:'等待中',hintCrop:'拖动4个角点以对齐文档。当前活动点会显示放大镜。',hintFilter:'你现在看到的是裁剪后的图像。滤镜会实时应用到该图像。',presetTitle:'滤镜模式',presetDesc:'对裁剪后的图像应用预设滤镜。',controlsTitle:'精细调整',controlsDesc:'亮度、对比度、伽马、饱和度、锐化和阈值控制。',exportTitle:'下载',exportDesc:'在保持质量的情况下下载 PNG、JPEG 或 PDF。',exportPng:'下载 PNG',exportJpg:'下载 JPEG',exportPdf:'下载 PDF',exportNote:'PNG 和 PDF 以质量优先方式生成。JPEG 以高质量导出。',themeDark:'切换到深色模式',themeLight:'切换到浅色模式',control_brightness:'亮度',control_contrast:'对比度',control_gamma:'伽马',control_saturation:'饱和度',control_sharpen:'锐化',control_threshold:'阈值',preset_original_label:'原始颜色',preset_original_hint:'自然外观',preset_document_label:'文档颜色',preset_document_hint:'清理纸张并保留颜色',preset_bw_label:'黑白',preset_bw_hint:'文字可读性高',preset_gray_label:'灰度',preset_gray_hint:'更柔和的结果',preset_threshold_label:'黑白阈值',preset_threshold_hint:'强黑白效果',preset_vivid_label:'鲜艳颜色',preset_vivid_hint:'适合彩色文档'},
+  ja:{langName:'日本語',code:'JA',flag:'🇯🇵',dir:'ltr',brandSubtitle:'先に切り抜き、その後で切り抜いた画像にライブフィルターを適用してダウンロードします。',upload:'画像をアップロード',crop:'切り抜き',recrop:'再度切り抜く',resetFilters:'フィルターをリセット',resetAll:'リセット',sourceLabel:'元の解像度',stageLabel:'段階',outputLabel:'出力解像度',flowTitle:'フロー',flowDesc:'先に書類領域を選択し、その後で切り抜き結果を編集します。',flowCrop:'1) 画像をアップロード  2) 4つの角を配置  3) 切り抜きをクリック  4) 切り抜き画像にフィルターを適用  5) ダウンロード。',stageCrop:'切り抜き',stageFilter:'フィルター',stageEmpty:'待機中',hintCrop:'4つの角をドラッグして書類を合わせます。アクティブな点には拡大表示が出ます。',hintFilter:'現在は切り抜いた画像を表示しています。フィルターはこの画像にライブ適用されます。',presetTitle:'フィルターモード',presetDesc:'切り抜いた画像にプリセットフィルターを適用します。',controlsTitle:'微調整',controlsDesc:'明るさ、コントラスト、ガンマ、彩度、シャープ、しきい値を調整できます。',exportTitle:'ダウンロード',exportDesc:'品質を保ったまま PNG、JPEG、PDF をダウンロードします。',exportPng:'PNG をダウンロード',exportJpg:'JPEG をダウンロード',exportPdf:'PDF をダウンロード',exportNote:'PNG と PDF は品質優先で生成されます。JPEG は高品質で書き出されます。',themeDark:'ダークモードに切り替え',themeLight:'ライトモードに切り替え',control_brightness:'明るさ',control_contrast:'コントラスト',control_gamma:'ガンマ',control_saturation:'彩度',control_sharpen:'シャープ',control_threshold:'しきい値',preset_original_label:'元の色',preset_original_hint:'自然な見た目',preset_document_label:'書類カラー',preset_document_hint:'紙面を整えつつ色を保持',preset_bw_label:'白黒',preset_bw_hint:'文字が読みやすい',preset_gray_label:'グレースケール',preset_gray_hint:'より柔らかい結果',preset_threshold_label:'白黒しきい値',preset_threshold_hint:'強い白黒',preset_vivid_label:'鮮やかな色',preset_vivid_hint:'カラー書類向け'},
+  fr:{langName:'Français',code:'FR',flag:'🇫🇷',dir:'ltr',brandSubtitle:'Recadrez d’abord, appliquez ensuite des filtres en direct sur l’image recadrée puis téléchargez-la.',upload:'Téléverser une image',crop:'Recadrer',recrop:'Recadrer à nouveau',resetFilters:'Réinitialiser les filtres',resetAll:'Réinitialiser',sourceLabel:'Résolution d’origine',stageLabel:'Étape',outputLabel:'Résolution de sortie',flowTitle:'Flux',flowDesc:'Sélectionnez d’abord la zone du document, puis modifiez le résultat recadré.',flowCrop:'1) Téléversez l’image  2) Placez les 4 coins  3) Cliquez sur Recadrer  4) Appliquez les filtres sur l’image recadrée  5) Téléchargez.',stageCrop:'Recadrage',stageFilter:'Filtres',stageEmpty:'En attente',hintCrop:'Faites glisser les 4 coins pour aligner le document. Le point actif affiche une loupe.',hintFilter:'Vous voyez maintenant l’image recadrée. Les filtres s’appliquent en direct sur cette image.',presetTitle:'Modes de filtre',presetDesc:'Appliquez des filtres prêts à l’emploi à l’image recadrée.',controlsTitle:'Réglages fins',controlsDesc:'Réglages de luminosité, contraste, gamma, saturation, netteté et seuil.',exportTitle:'Télécharger',exportDesc:'Téléchargez en PNG, JPEG ou PDF en préservant la qualité.',exportPng:'Télécharger PNG',exportJpg:'Télécharger JPEG',exportPdf:'Télécharger PDF',exportNote:'PNG et PDF sont générés avec priorité à la qualité. JPEG est exporté en haute qualité.',themeDark:'Passer au mode sombre',themeLight:'Passer au mode clair',control_brightness:'Luminosité',control_contrast:'Contraste',control_gamma:'Gamma',control_saturation:'Saturation',control_sharpen:'Netteté',control_threshold:'Seuil',preset_original_label:'Couleur d’origine',preset_original_hint:'Rendu naturel',preset_document_label:'Couleur document',preset_document_hint:'Nettoie le papier et conserve les couleurs',preset_bw_label:'Noir et blanc',preset_bw_hint:'Grande lisibilité du texte',preset_gray_label:'Niveaux de gris',preset_gray_hint:'Résultat plus doux',preset_threshold_label:'Seuil N/B',preset_threshold_hint:'Noir et blanc marqué',preset_vivid_label:'Couleur vive',preset_vivid_hint:'Pour les documents colorés'},
+  pt:{langName:'Português',code:'PT',flag:'🇵🇹',dir:'ltr',brandSubtitle:'Primeiro recorte, depois aplique filtros ao vivo na imagem recortada e faça o download.',upload:'Enviar imagem',crop:'Recortar',recrop:'Recortar novamente',resetFilters:'Redefinir filtros',resetAll:'Redefinir',sourceLabel:'Resolução original',stageLabel:'Etapa',outputLabel:'Resolução de saída',flowTitle:'Fluxo',flowDesc:'Primeiro selecione a área do documento e depois edite o resultado recortado.',flowCrop:'1) Envie a imagem  2) Posicione os 4 cantos  3) Clique em Recortar  4) Aplique filtros na imagem recortada  5) Faça o download.',stageCrop:'Recorte',stageFilter:'Filtros',stageEmpty:'Aguardando',hintCrop:'Arraste os 4 cantos para alinhar o documento. O ponto ativo mostra uma lupa.',hintFilter:'Agora você está vendo a imagem recortada. Os filtros são aplicados ao vivo nessa imagem.',presetTitle:'Modos de filtro',presetDesc:'Aplique filtros prontos à imagem recortada.',controlsTitle:'Ajuste fino',controlsDesc:'Controles de brilho, contraste, gama, saturação, nitidez e limiar.',exportTitle:'Baixar',exportDesc:'Baixe PNG, JPEG ou PDF preservando a qualidade.',exportPng:'Baixar PNG',exportJpg:'Baixar JPEG',exportPdf:'Baixar PDF',exportNote:'PNG e PDF são gerados com foco em qualidade. JPEG é exportado em alta qualidade.',themeDark:'Alternar para modo escuro',themeLight:'Alternar para modo claro',control_brightness:'Brilho',control_contrast:'Contraste',control_gamma:'Gama',control_saturation:'Saturação',control_sharpen:'Nitidez',control_threshold:'Limiar',preset_original_label:'Cor original',preset_original_hint:'Visual natural',preset_document_label:'Cor do documento',preset_document_hint:'Limpa o papel e preserva as cores',preset_bw_label:'Preto e branco',preset_bw_hint:'Alta legibilidade de texto',preset_gray_label:'Escala de cinza',preset_gray_hint:'Resultado mais suave',preset_threshold_label:'Limiar P/B',preset_threshold_hint:'Preto e branco forte',preset_vivid_label:'Cor vibrante',preset_vivid_hint:'Para documentos coloridos'},
+  ru:{langName:'Русский',code:'RU',flag:'🇷🇺',dir:'ltr',brandSubtitle:'Сначала обрежьте, затем применяйте фильтры в реальном времени к обрезанному изображению и скачайте его.',upload:'Загрузить изображение',crop:'Обрезать',recrop:'Обрезать снова',resetFilters:'Сбросить фильтры',resetAll:'Сбросить',sourceLabel:'Исходное разрешение',stageLabel:'Этап',outputLabel:'Выходное разрешение',flowTitle:'Поток',flowDesc:'Сначала выберите область документа, затем редактируйте обрезанный результат.',flowCrop:'1) Загрузите изображение  2) Установите 4 точки  3) Нажмите Обрезать  4) Примените фильтры к обрезанному изображению  5) Скачайте.',stageCrop:'Обрезка',stageFilter:'Фильтры',stageEmpty:'Ожидание',hintCrop:'Перетащите 4 угла, чтобы выровнять документ. Активная точка показывает лупу.',hintFilter:'Сейчас вы видите обрезанное изображение. Фильтры применяются к нему в реальном времени.',presetTitle:'Режимы фильтра',presetDesc:'Применяйте готовые фильтры к обрезанному изображению.',controlsTitle:'Точная настройка',controlsDesc:'Яркость, контраст, гамма, насыщенность, резкость и порог.',exportTitle:'Скачать',exportDesc:'Скачайте PNG, JPEG или PDF с сохранением качества.',exportPng:'Скачать PNG',exportJpg:'Скачать JPEG',exportPdf:'Скачать PDF',exportNote:'PNG и PDF создаются с упором на качество. JPEG экспортируется в высоком качестве.',themeDark:'Переключить на тёмную тему',themeLight:'Переключить на светлую тему',control_brightness:'Яркость',control_contrast:'Контраст',control_gamma:'Гамма',control_saturation:'Насыщенность',control_sharpen:'Резкость',control_threshold:'Порог',preset_original_label:'Исходный цвет',preset_original_hint:'Естественный вид',preset_document_label:'Цвет документа',preset_document_hint:'Очищает бумагу и сохраняет цвета',preset_bw_label:'Чёрно-белый',preset_bw_hint:'Высокая читаемость текста',preset_gray_label:'Оттенки серого',preset_gray_hint:'Более мягкий результат',preset_threshold_label:'Порог Ч/Б',preset_threshold_hint:'Жёсткий чёрно-белый',preset_vivid_label:'Яркий цвет',preset_vivid_hint:'Для цветных документов'},
+  hi:{langName:'हिन्दी',code:'HI',flag:'🇮🇳',dir:'ltr',brandSubtitle:'पहले क्रॉप करें, फिर क्रॉप की गई इमेज पर लाइव फ़िल्टर लगाएँ और डाउनलोड करें।',upload:'इमेज अपलोड करें',crop:'क्रॉप',recrop:'फिर से क्रॉप करें',resetFilters:'फ़िल्टर रीसेट करें',resetAll:'रीसेट',sourceLabel:'मूल रिज़ॉल्यूशन',stageLabel:'चरण',outputLabel:'आउटपुट रिज़ॉल्यूशन',flowTitle:'फ़्लो',flowDesc:'पहले दस्तावेज़ का क्षेत्र चुनें, फिर क्रॉप किए गए परिणाम को संपादित करें।',flowCrop:'1) इमेज अपलोड करें  2) 4 कोने रखें  3) क्रॉप दबाएँ  4) क्रॉप की गई इमेज पर फ़िल्टर लगाएँ  5) डाउनलोड करें।',stageCrop:'क्रॉपिंग',stageFilter:'फ़िल्टर',stageEmpty:'प्रतीक्षा',hintCrop:'दस्तावेज़ को मिलाने के लिए 4 कोनों को खींचें। सक्रिय बिंदु पर ज़ूम लूप दिखाई देगा।',hintFilter:'अब आप क्रॉप की गई इमेज देख रहे हैं। फ़िल्टर इसी इमेज पर लाइव लागू होते हैं।',presetTitle:'फ़िल्टर मोड',presetDesc:'क्रॉप की गई इमेज पर तैयार फ़िल्टर लगाएँ।',controlsTitle:'सूक्ष्म समायोजन',controlsDesc:'ब्राइटनेस, कॉन्ट्रास्ट, गामा, सैचुरेशन, शार्पन और थ्रेशोल्ड नियंत्रण।',exportTitle:'डाउनलोड',exportDesc:'गुणवत्ता बनाए रखते हुए PNG, JPEG या PDF डाउनलोड करें।',exportPng:'PNG डाउनलोड',exportJpg:'JPEG डाउनलोड',exportPdf:'PDF डाउनलोड',exportNote:'PNG और PDF गुणवत्ता प्राथमिकता के साथ बनाए जाते हैं। JPEG उच्च गुणवत्ता में निर्यात होता है।',themeDark:'डार्क मोड पर जाएँ',themeLight:'लाइट मोड पर जाएँ',control_brightness:'ब्राइटनेस',control_contrast:'कॉन्ट्रास्ट',control_gamma:'गामा',control_saturation:'सैचुरेशन',control_sharpen:'शार्पन',control_threshold:'थ्रेशोल्ड',preset_original_label:'मूल रंग',preset_original_hint:'प्राकृतिक रूप',preset_document_label:'दस्तावेज़ रंग',preset_document_hint:'कागज़ साफ करता है और रंग बनाए रखता है',preset_bw_label:'ब्लैक एंड व्हाइट',preset_bw_hint:'उच्च पाठ पठनीयता',preset_gray_label:'ग्रेस्केल',preset_gray_hint:'और नरम परिणाम',preset_threshold_label:'B/W थ्रेशोल्ड',preset_threshold_hint:'कड़ा ब्लैक एंड व्हाइट',preset_vivid_label:'चटख रंग',preset_vivid_hint:'रंगीन दस्तावेज़ों के लिए'},
+  ko:{langName:'한국어',code:'KO',flag:'🇰🇷',dir:'ltr',brandSubtitle:'먼저 자르고, 잘린 이미지에 실시간 필터를 적용한 뒤 다운로드하세요.',upload:'이미지 업로드',crop:'자르기',recrop:'다시 자르기',resetFilters:'필터 초기화',resetAll:'초기화',sourceLabel:'원본 해상도',stageLabel:'단계',outputLabel:'출력 해상도',flowTitle:'흐름',flowDesc:'먼저 문서 영역을 선택한 다음 잘린 결과를 편집하세요.',flowCrop:'1) 이미지 업로드  2) 4개 모서리 배치  3) 자르기 클릭  4) 잘린 이미지에 필터 적용  5) 다운로드.',stageCrop:'자르기',stageFilter:'필터',stageEmpty:'대기 중',hintCrop:'문서를 맞추기 위해 4개 모서리를 드래그하세요. 활성 점에는 확대 표시가 나타납니다.',hintFilter:'이제 잘린 이미지를 보고 있습니다. 필터가 이 이미지에 실시간으로 적용됩니다.',presetTitle:'필터 모드',presetDesc:'잘린 이미지에 준비된 필터를 적용하세요.',controlsTitle:'세부 조정',controlsDesc:'밝기, 대비, 감마, 채도, 선명도 및 임계값 조절.',exportTitle:'다운로드',exportDesc:'품질을 유지한 채 PNG, JPEG 또는 PDF를 다운로드하세요.',exportPng:'PNG 다운로드',exportJpg:'JPEG 다운로드',exportPdf:'PDF 다운로드',exportNote:'PNG와 PDF는 품질 우선으로 생성됩니다. JPEG는 고품질로 내보냅니다.',themeDark:'다크 모드로 전환',themeLight:'라이트 모드로 전환',control_brightness:'밝기',control_contrast:'대비',control_gamma:'감마',control_saturation:'채도',control_sharpen:'선명도',control_threshold:'임계값',preset_original_label:'원본 색상',preset_original_hint:'자연스러운 보기',preset_document_label:'문서 색상',preset_document_hint:'용지를 정리하고 색상을 유지',preset_bw_label:'흑백',preset_bw_hint:'높은 텍스트 가독성',preset_gray_label:'그레이스케일',preset_gray_hint:'더 부드러운 결과',preset_threshold_label:'흑백 임계값',preset_threshold_hint:'강한 흑백',preset_vivid_label:'선명한 색상',preset_vivid_hint:'컬러 문서용'}
+};
+
+const extraI18n = {
+  tr:{qualityNote:'Ekrandaki görüntü hız için optimize edilmiş ön izlemedir. Kırpma sonrası da bu sadece ön izlemedir; indirirken gerçek kalite ve tam çözünürlük kullanılır.', loadingCrop:'Kırpma yapılıyor...', loadingDownload:'Dosya hazırlanıyor...', loadingDefault:'İşlem yapılıyor...', loadingFilter:'Filtre uygulanıyor...'},
+  en:{qualityNote:'The on-screen image is an optimized preview for speed. After cropping, it is still only a preview; downloads use real quality and full resolution.', loadingCrop:'Cropping image...', loadingDownload:'Preparing download...', loadingDefault:'Processing...', loadingFilter:'Applying filter...'},
+  de:{qualityNote:'Das Bild auf dem Bildschirm ist eine für Geschwindigkeit optimierte Vorschau. Auch nach dem Zuschneiden ist es nur eine Vorschau; beim Download werden echte Qualität und volle Auflösung verwendet.', loadingCrop:'Bild wird zugeschnitten...', loadingDownload:'Download wird vorbereitet...', loadingDefault:'Verarbeitung läuft...', loadingFilter:'Filter wird angewendet...'},
+  ar:{qualityNote:'الصورة الظاهرة على الشاشة هي معاينة محسّنة للسرعة. وحتى بعد القص فهي ما تزال مجرد معاينة؛ عند التنزيل سيتم استخدام الجودة الحقيقية والدقة الكاملة.', loadingCrop:'جارٍ قص الصورة...', loadingDownload:'جارٍ تجهيز الملف...', loadingDefault:'جارٍ المعالجة...', loadingFilter:'جارٍ تطبيق الفلتر...'},
+  es:{qualityNote:'La imagen en pantalla es una vista previa optimizada para mayor velocidad. Incluso después del recorte sigue siendo solo una vista previa; al descargar se usa la calidad real y la resolución completa.', loadingCrop:'Recortando imagen...', loadingDownload:'Preparando descarga...', loadingDefault:'Procesando...'},
+  zh:{qualityNote:'屏幕上的图像是为速度优化的预览。即使裁剪后，它仍然只是预览；下载时会使用真实质量和完整分辨率。', loadingCrop:'正在裁剪图像...', loadingDownload:'正在准备下载...', loadingDefault:'处理中...'},
+  ja:{qualityNote:'画面上の画像は速度のため最適化されたプレビューです。切り抜き後もあくまでプレビューであり、ダウンロード時には実際の品質とフル解像度が使われます。', loadingCrop:'画像を切り抜いています...', loadingDownload:'ダウンロードを準備しています...', loadingDefault:'処理中...'},
+  fr:{qualityNote:'L’image affichée à l’écran est un aperçu optimisé pour la vitesse. Même après le recadrage, ce n’est qu’un aperçu; le téléchargement utilise la qualité réelle et la pleine résolution.', loadingCrop:'Recadrage de l’image...', loadingDownload:'Préparation du téléchargement...', loadingDefault:'Traitement en cours...'},
+  pt:{qualityNote:'A imagem na tela é uma prévia otimizada para velocidade. Mesmo após o recorte, ela ainda é apenas uma prévia; no download são usadas a qualidade real e a resolução total.', loadingCrop:'Recortando imagem...', loadingDownload:'Preparando download...', loadingDefault:'Processando...'},
+  ru:{qualityNote:'Изображение на экране — это оптимизированный предпросмотр для скорости. Даже после обрезки это все еще только предпросмотр; при скачивании используются реальное качество и полное разрешение.', loadingCrop:'Выполняется обрезка изображения...', loadingDownload:'Подготавливается файл...', loadingDefault:'Обработка...'},
+  hi:{qualityNote:'स्क्रीन पर दिख रही इमेज गति के लिए ऑप्टिमाइज़ किया गया प्रीव्यू है। क्रॉप के बाद भी यह सिर्फ प्रीव्यू ही रहती है; डाउनलोड करते समय वास्तविक क्वालिटी और पूरा रिज़ॉल्यूशन उपयोग होगा।', loadingCrop:'इमेज क्रॉप की जा रही है...', loadingDownload:'डाउनलोड तैयार किया जा रहा है...', loadingDefault:'प्रोसेस हो रहा है...'},
+  ko:{qualityNote:'화면에 보이는 이미지는 속도를 위한 최적화된 미리보기입니다. 자른 뒤에도 이것은 미리보기일 뿐이며, 다운로드할 때는 실제 품질과 전체 해상도가 사용됩니다.', loadingCrop:'이미지를 자르는 중...', loadingDownload:'다운로드 준비 중...', loadingDefault:'처리 중...'}
+};
+Object.entries(extraI18n).forEach(([key, value]) => { if (i18n[key]) Object.assign(i18n[key], value); });
+
+const mobileUiI18n = {
+  tr:{mobileUpload:'Görsel seç', mobileCrop:'Kırp', mobileFilter:'Düzenle ve indir'},
+  en:{mobileUpload:'1. Upload', mobileCrop:'2. Crop', mobileFilter:'3. Edit/Download'},
+  de:{mobileUpload:'1. Laden', mobileCrop:'2. Zuschneiden', mobileFilter:'3. Bearbeiten/Download'},
+  ar:{mobileUpload:'1. تحميل', mobileCrop:'2. قص', mobileFilter:'3. تعديل/تنزيل'},
+  es:{mobileUpload:'1. Subir', mobileCrop:'2. Recortar', mobileFilter:'Düzenle ve indir'},
+  zh:{mobileUpload:'1. 上传', mobileCrop:'2. 裁剪', mobileFilter:'3. 编辑/下载'},
+  ja:{mobileUpload:'1. アップロード', mobileCrop:'2. 切り抜き', mobileFilter:'3. 編集/ダウンロード'},
+  fr:{mobileUpload:'1. Téléverser', mobileCrop:'2. Recadrer', mobileFilter:'3. Modifier/Télécharger'},
+  pt:{mobileUpload:'1. Enviar', mobileCrop:'2. Recortar', mobileFilter:'3. Editar/Baixar'},
+  ru:{mobileUpload:'1. Загрузить', mobileCrop:'2. Обрезать', mobileFilter:'3. Редактировать/Скачать'},
+  hi:{mobileUpload:'1. अपलोड', mobileCrop:'2. क्रॉप', mobileFilter:'3. एडिट/डाउनलोड'},
+  ko:{mobileUpload:'1. 업로드', mobileCrop:'2. 자르기', mobileFilter:'3. 편집/다운로드'}
+};
+Object.entries(mobileUiI18n).forEach(([key, value]) => { if (i18n[key]) Object.assign(i18n[key], value); });
+
+const presetDefs = {
+  original:{mode:'color',brightness:0,contrast:0,gamma:1,saturation:1,sharpen:0,threshold:165},
+  document:{mode:'doc',brightness:6,contrast:18,gamma:1.03,saturation:1.02,sharpen:.45,threshold:165},
+  bw:{mode:'bw',brightness:9,contrast:32,gamma:1.06,saturation:0,sharpen:.48,threshold:168},
+  gray:{mode:'gray',brightness:3,contrast:12,gamma:1.02,saturation:0,sharpen:.16,threshold:160},
+  threshold:{mode:'threshold',brightness:12,contrast:36,gamma:1.08,saturation:0,sharpen:.52,threshold:170},
+  vivid:{mode:'color',brightness:4,contrast:10,gamma:.98,saturation:1.18,sharpen:.2,threshold:165}
+};
+const controlDefs = [
+  ['brightness',-80,80,1],['contrast',-80,80,1],['gamma',0.4,2.6,0.01],['saturation',0,2.5,0.01],['sharpen',0,1.2,0.01],['threshold',0,255,1]
+];
+
+const el = id => document.getElementById(id);
+const canvas = el('editorCanvas'), ctx = canvas.getContext('2d');
+const loadingOverlay = el('loadingOverlay');
+const loadingText = el('loadingText');
+const appRoot = el('appRoot');
+const previewArea = el('previewArea');
+const state = {
+  lang:'tr', theme:'light', image:null, imageBitmap:null, imageUrl:null, stage:'empty',
+  points:[], dragging:-1, hover:-1, view:{baseScale:1,scale:1,offsetX:0,offsetY:0,width:1,height:1},
+  activePreset:'original', settings:{...presetDefs.original}, croppedBase:null, sourceFileName:'scan', isPanning:false, panStart:null, activePointers:new Map(), pinchStart:null, cropMeta:null, filteredPreview:null, filteredPreviewKey:'', fullCropCache:null, fullCropCacheKey:'', busy:false, exportChoice:{type:'',quality:''}
+};
+
+function tr(k){ return i18n[state.lang][k] ?? k; }
+function waitForPaint(){ return new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))); }
+function clamp(v,min,max){ return Math.min(max, Math.max(min,v)); }
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function distance(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
+function getPointerPos(e){ const r = canvas.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; }
+function pointerDistance(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
+function pointerCenter(a,b){ return {x:(a.x+b.x)/2, y:(a.y+b.y)/2}; }
+function refreshPinchStart(){
+  if(state.activePointers.size < 2){ state.pinchStart = null; return; }
+  const pts = [...state.activePointers.values()].slice(0,2);
+  state.pinchStart = {
+    distance: Math.max(1, pointerDistance(pts[0], pts[1])),
+    scale: state.view.scale,
+    center: pointerCenter(pts[0], pts[1])
+  };
+}
+function imageToCanvas(p){ return {x:state.view.offsetX + p.x*state.view.scale, y:state.view.offsetY + p.y*state.view.scale}; }
+function canvasToImage(p){ return {x:clamp((p.x-state.view.offsetX)/state.view.scale,0,state.image.naturalWidth), y:clamp((p.y-state.view.offsetY)/state.view.scale,0,state.image.naturalHeight)}; }
+function getActiveStageSize(){
+  if(state.stage==='filter' && state.croppedBase) return { width: state.croppedBase.width, height: state.croppedBase.height };
+  if(state.image) return { width: state.image.naturalWidth, height: state.image.naturalHeight };
+  return null;
+}
+function clampViewOffsets(){
+  const active = getActiveStageSize();
+  if(!active) return;
+  const rect = canvas.getBoundingClientRect();
+  const padX = Math.max(120, rect.width * 0.32);
+  const padY = Math.max(120, rect.height * 0.32);
+  const minX = rect.width - active.width * state.view.scale - padX;
+  const minY = rect.height - active.height * state.view.scale - padY;
+  const maxX = padX;
+  const maxY = padY;
+  state.view.offsetX = Math.min(maxX, Math.max(minX, state.view.offsetX));
+  state.view.offsetY = Math.min(maxY, Math.max(minY, state.view.offsetY));
+}
+function setZoom(nextScale, pivot){
+  const active = getActiveStageSize();
+  if(!active) return;
+  const prev = state.view.scale;
+  const minScale = state.view.baseScale * 0.38;
+  const maxScale = state.view.baseScale * 6;
+  const scale = clamp(nextScale, minScale, maxScale);
+  const imgX = (pivot.x - state.view.offsetX) / prev;
+  const imgY = (pivot.y - state.view.offsetY) / prev;
+  state.view.scale = scale;
+  state.view.width = active.width * scale;
+  state.view.height = active.height * scale;
+  state.view.offsetX = pivot.x - imgX * scale;
+  state.view.offsetY = pivot.y - imgY * scale;
+  clampViewOffsets();
+  draw();
+}
+function outputSizeFromPoints(){ const [tl,tr,br,bl]=state.points; return { width: clamp(Math.round(Math.max(distance(tl,tr),distance(bl,br))),32,8000), height: clamp(Math.round(Math.max(distance(tl,bl),distance(tr,br))),32,8000) }; }
+function clonePoints(points){ return points.map(p=>({x:p.x,y:p.y})); }
+function orderPointsClockwise(points){
+  if(!points || points.length!==4) return points;
+  const pts = points.map(p=>({x:p.x,y:p.y}));
+  const sums = pts.map(p=>p.x+p.y);
+  const diffs = pts.map(p=>p.x-p.y);
+  const tl = pts[sums.indexOf(Math.min(...sums))];
+  const br = pts[sums.indexOf(Math.max(...sums))];
+  const tr = pts[diffs.indexOf(Math.max(...diffs))];
+  const bl = pts[diffs.indexOf(Math.min(...diffs))];
+  return [tl,tr,br,bl];
+}
+function detectDocumentCorners(){
+  if(!state.imageBitmap || !state.image) return null;
+  const maxSide = 320;
+  const scale = Math.min(1, maxSide / Math.max(state.image.naturalWidth, state.image.naturalHeight));
+  const w = Math.max(40, Math.round(state.image.naturalWidth * scale));
+  const h = Math.max(40, Math.round(state.image.naturalHeight * scale));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d', { willReadFrequently:true });
+  x.drawImage(state.imageBitmap, 0, 0, w, h);
+  const img = x.getImageData(0,0,w,h);
+  const data = img.data;
+  const gray = new Float32Array(w*h);
+  for(let i=0,j=0;i<data.length;i+=4,j++){ gray[j] = data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114; }
+  const edges = new Float32Array(w*h);
+  let sum = 0, count = 0;
+  for(let y=1;y<h-1;y++) for(let x0=1;x0<w-1;x0++){
+    const idx = y*w + x0;
+    const gx = -gray[idx-w-1] - 2*gray[idx-1] - gray[idx+w-1] + gray[idx-w+1] + 2*gray[idx+1] + gray[idx+w+1];
+    const gy = -gray[idx-w-1] - 2*gray[idx-w] - gray[idx-w+1] + gray[idx+w-1] + 2*gray[idx+w] + gray[idx+w+1];
+    const mag = Math.hypot(gx,gy);
+    edges[idx] = mag; sum += mag; count++;
+  }
+  const threshold = (sum / Math.max(1,count)) * 1.45;
+  let minSum = Infinity, maxSum = -Infinity, minDiff = Infinity, maxDiff = -Infinity;
+  let tl=null, tr=null, br=null, bl=null;
+  for(let y=2;y<h-2;y++) for(let x0=2;x0<w-2;x0++){
+    const idx = y*w + x0; const mag = edges[idx];
+    if(mag < threshold) continue;
+    const s = x0 + y; const d = x0 - y;
+    if(s < minSum){ minSum = s; tl = {x:x0,y}; }
+    if(s > maxSum){ maxSum = s; br = {x:x0,y}; }
+    if(d < minDiff){ minDiff = d; bl = {x:x0,y}; }
+    if(d > maxDiff){ maxDiff = d; tr = {x:x0,y}; }
+  }
+  const pts = [tl,tr,br,bl];
+  if(pts.some(p => !p)) return null;
+  const unique = new Set(pts.map(p => `${p.x},${p.y}`));
+  if(unique.size < 4) return null;
+  const ordered = orderPointsClockwise(pts).map(p => ({ x: p.x / scale, y: p.y / scale }));
+  const widthTop = distance(ordered[0], ordered[1]);
+  const widthBottom = distance(ordered[3], ordered[2]);
+  const heightLeft = distance(ordered[0], ordered[3]);
+  const heightRight = distance(ordered[1], ordered[2]);
+  const areaEstimate = Math.max(widthTop, widthBottom) * Math.max(heightLeft, heightRight);
+  const imageArea = state.image.naturalWidth * state.image.naturalHeight;
+  if(areaEstimate < imageArea * 0.08) return null;
+  return ordered.map(p => ({ x: clamp(p.x, 0, state.image.naturalWidth), y: clamp(p.y, 0, state.image.naturalHeight) }));
+}
+function getPreviewCropSize(size, maxSide=1600){ const scale=Math.min(1, maxSide/Math.max(size.width,size.height)); return { width: Math.max(1, Math.round(size.width*scale)), height: Math.max(1, Math.round(size.height*scale)), scale }; }
+function getSettingsKey(){ return JSON.stringify(state.settings); }
+function invalidateFilterCache(){ state.filteredPreview=null; state.filteredPreviewKey=''; }
+function invalidateFullCropCache(){ state.fullCropCache=null; state.fullCropCacheKey=''; }
+function showLoading(message){ state.busy=true; loadingText.textContent = message || tr('loadingDefault'); loadingOverlay.classList.add('show'); loadingOverlay.setAttribute('aria-hidden','false'); }
+function hideLoading(){ state.busy=false; loadingOverlay.classList.remove('show'); loadingOverlay.setAttribute('aria-hidden','true'); }
+async function runWithLoading(message, task){ showLoading(message); await waitForPaint(); try{ return await task(); } finally { hideLoading(); } }
+function createSourceImageData(){ const sourceCanvas=document.createElement('canvas'); sourceCanvas.width=state.image.naturalWidth; sourceCanvas.height=state.image.naturalHeight; const sctx=sourceCanvas.getContext('2d',{willReadFrequently:true}); sctx.drawImage(state.imageBitmap||state.image,0,0); return { width: sourceCanvas.width, height: sourceCanvas.height, data: sctx.getImageData(0,0,sourceCanvas.width,sourceCanvas.height).data }; }
+function createCroppedCanvas(targetSize){
+  if(!state.image || !state.cropMeta) return null;
+  const source = createSourceImageData();
+  const outCanvas=document.createElement('canvas');
+  outCanvas.width=targetSize.width; outCanvas.height=targetSize.height;
+  const octx=outCanvas.getContext('2d',{willReadFrequently:true});
+  const img=octx.createImageData(targetSize.width,targetSize.height);
+  const dst=img.data;
+  const srcPts = state.cropMeta.points;
+  const H=solveHomography(srcPts,[{x:0,y:0},{x:targetSize.width-1,y:0},{x:targetSize.width-1,y:targetSize.height-1},{x:0,y:targetSize.height-1}]);
+  const inv=invert3x3(H);
+  if(!inv) return null;
+  for(let y=0;y<targetSize.height;y++) for(let x=0;x<targetSize.width;x++){ const src=mapPoint(inv,x,y); const rgba=bilinearSample(source.data,source.width,source.height,src.x,src.y); const i=(y*targetSize.width+x)*4; dst[i]=rgba[0]; dst[i+1]=rgba[1]; dst[i+2]=rgba[2]; dst[i+3]=255; }
+  octx.putImageData(img,0,0);
+  return outCanvas;
+}
+function getFilteredPreviewCanvas(){
+  if(!state.croppedBase) return null;
+  const key = `${state.croppedBase.width}x${state.croppedBase.height}|${getSettingsKey()}`;
+  if(state.filteredPreview && state.filteredPreviewKey===key) return state.filteredPreview;
+  const c=document.createElement('canvas'); c.width=state.croppedBase.width; c.height=state.croppedBase.height;
+  const x=c.getContext('2d',{willReadFrequently:true});
+  x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high';
+  x.drawImage(state.croppedBase,0,0);
+  const img=x.getImageData(0,0,c.width,c.height);
+  applyFiltersToData(img.data,c.width,c.height,state.settings);
+  x.putImageData(img,0,0);
+  state.filteredPreview=c; state.filteredPreviewKey=key;
+  return c;
+}
+function buildExportCanvas(){
+  const base = getFullCropCanvas();
+  if(!base) return null;
+  const c=document.createElement('canvas'); c.width=base.width; c.height=base.height;
+  const x=c.getContext('2d',{willReadFrequently:true});
+  x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high';
+  x.drawImage(base,0,0);
+  const img=x.getImageData(0,0,c.width,c.height);
+  applyFiltersToData(img.data,c.width,c.height,state.settings);
+  x.putImageData(img,0,0);
+  return c;
+}
+function getFullCropCanvas(){
+  if(!state.cropMeta) return null;
+  const key = `${state.cropMeta.width}x${state.cropMeta.height}|${JSON.stringify(state.cropMeta.points)}`;
+  if(state.fullCropCache && state.fullCropCacheKey===key) return state.fullCropCache;
+  const canvas = createCroppedCanvas({width:state.cropMeta.width,height:state.cropMeta.height});
+  state.fullCropCache = canvas;
+  state.fullCropCacheKey = key;
+  return canvas;
+}
+
+function isCompactUI(){ return window.matchMedia('(max-width: 920px)').matches; }
+function focusPreviewOnCompact(){ if(!isCompactUI()) return; previewArea?.scrollIntoView({behavior:'smooth', block:'start'}); }
+function updateMobileStepUI(){
+  const mobileSteps = el('mobileSteps');
+  appRoot.classList.remove('mobile-step-empty','mobile-step-crop','mobile-step-filter');
+  if(mobileSteps) mobileSteps.style.display='none';
+  if(!isCompactUI()) return;
+  const stepClass = state.stage==='filter' ? 'mobile-step-filter' : state.stage==='crop' ? 'mobile-step-crop' : 'mobile-step-empty';
+  appRoot.classList.add(stepClass);
+}
+function renderPresetGrid(gridId, compactMode=false){
+  const grid = el(gridId);
+  if(!grid) return;
+  grid.innerHTML='';
+  const enabled = state.stage==='filter' && !!state.croppedBase;
+  Object.keys(presetDefs).forEach(key=>{
+    const b=document.createElement('button');
+    b.type='button';
+    b.className='preset'+(state.activePreset===key?' active':'');
+    b.disabled = !enabled;
+    b.innerHTML=`<strong>${tr(`preset_${key}_label`)}</strong><span>${tr(`preset_${key}_hint`)}</span>`;
+    b.onclick=async()=>{
+      if(!enabled || state.busy) return;
+      await runWithLoading(tr('loadingFilter'), async () => {
+        state.activePreset=key;
+        state.settings={...presetDefs[key]};
+        invalidateFilterCache();
+        buildPresets();
+        buildControls();
+        if(state.stage==='filter') draw();
+        if(compactMode) focusPreviewOnCompact();
+      });
+    };
+    grid.appendChild(b);
+  });
+}
+function updateToolbarStepState(){
+  const uploadBtn = el('uploadLabel');
+  const cropBtn = el('cropBtn');
+  const recropBtn = el('recropBtn');
+  const resetAllBtn = el('resetAllBtn');
+  const hasImage = !!state.image;
+  uploadBtn.classList.remove('step-upload-active');
+  cropBtn.classList.remove('step-crop-active');
+  recropBtn.classList.remove('step-filter-active');
+  uploadBtn.style.display = hasImage ? 'none' : 'inline-flex';
+  cropBtn.style.display = state.stage==='crop' ? 'inline-flex' : 'none';
+  recropBtn.style.display = state.stage==='filter' ? 'inline-flex' : 'none';
+  resetAllBtn.style.display = hasImage ? 'inline-flex' : 'none';
+  if(state.stage==='empty') uploadBtn.classList.add('step-upload-active');
+  if(state.stage==='crop') cropBtn.classList.add('step-crop-active');
+  if(state.stage==='filter') recropBtn.classList.add('step-filter-active');
+}
+function updateTexts(){
+  document.documentElement.lang = state.lang; document.documentElement.dir = i18n[state.lang].dir;
+  el('brandSubtitle').textContent = tr('brandSubtitle'); el('uploadLabel').textContent = tr('upload'); el('cropBtn').textContent = tr('crop'); el('recropBtn').textContent = tr('recrop'); el('resetAllBtn').textContent = tr('resetAll'); el('resetFiltersBtn').textContent = tr('resetFilters'); if(el('mobileResetFiltersBtn')) el('mobileResetFiltersBtn').textContent = tr('resetFilters');
+  el('sourceLabel').textContent = tr('sourceLabel'); el('stageLabel').textContent = tr('stageLabel'); el('outputLabel').textContent = tr('outputLabel');
+  el('flowTitle').textContent = tr('flowTitle'); el('flowDesc').textContent = tr('flowDesc'); el('flowNote').textContent = tr('flowCrop');
+  el('presetTitle').textContent = tr('presetTitle'); el('presetDesc').textContent = tr('presetDesc'); el('controlsTitle').textContent = tr('controlsTitle'); el('controlsDesc').textContent = tr('controlsDesc');
+  el('exportTitle').textContent = tr('exportTitle'); el('exportDesc').textContent = tr('exportDesc'); applyExportTexts();
+  el('mobilePresetTitle').textContent = tr('presetTitle'); el('mobilePresetDesc').textContent = tr('presetDesc'); el('mobileAdvancedSummary').textContent = tr('controlsTitle'); el('mobileExportTitle').textContent = tr('exportTitle'); el('mobileExportDesc').textContent = tr('exportDesc');
+  el('mobileStepUpload').textContent = tr('mobileUpload'); el('mobileStepCrop').textContent = tr('mobileCrop'); el('mobileStepFilter').textContent = tr('mobileFilter');
+  el('canvasHint').textContent = state.stage === 'filter' ? tr('hintFilter') : tr('hintCrop');
+  el('previewQualityNote').textContent = state.stage === 'filter' ? tr('qualityNote') : '';
+  el('previewQualityNote').style.display = state.stage === 'filter' ? 'block' : 'none';
+  el('resetFiltersBtn').style.display = state.stage === 'filter' ? 'block' : 'none';
+  if(el('mobileResetFiltersBtn')) el('mobileResetFiltersBtn').style.display = state.stage === 'filter' ? 'block' : 'none';
+  setExportAvailability();
+  el('stageInfo').textContent = state.stage === 'crop' ? tr('stageCrop') : state.stage === 'filter' ? tr('stageFilter') : tr('stageEmpty');
+  el('langCurrentFlag').textContent = i18n[state.lang].flag; el('langCurrentCode').textContent = i18n[state.lang].code;
+  updateMobileStepUI();
+  updateToolbarStepState();
+  const themeBtn = el('themeBtn');
+  themeBtn.setAttribute('aria-label', state.theme === 'dark' ? tr('themeLight') : tr('themeDark'));
+  themeBtn.innerHTML = state.theme === 'dark' ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+  buildPresets(); buildControls(); updateInfo();
+}
+
+function buildLangMenu(){
+  const menu = el('langMenu'); menu.innerHTML='';
+  Object.entries(i18n).forEach(([key,v])=>{
+    const b=document.createElement('button'); b.type='button'; b.className='lang-option'+(key===state.lang?' active':'');
+    b.innerHTML=`<span class="lang-meta"><span class="flag-badge">${v.flag}</span><span><strong>${v.langName||key.toUpperCase()}</strong><small>${v.code||key.toUpperCase()}</small></span></span><span>${key===state.lang?'✓':''}</span>`;
+    b.onclick=()=>{ state.lang=key; try{localStorage.setItem('photoscanner_lang', key);}catch(e){} updateTexts(); draw(); buildLangMenu(); closeLang(); };
+    menu.appendChild(b);
+  });
+}
+function openLang(){ el('langMenu').classList.add('open'); el('langTrigger').setAttribute('aria-expanded','true'); }
+function closeLang(){ el('langMenu').classList.remove('open'); el('langTrigger').setAttribute('aria-expanded','false'); }
+
+function buildPresets(){
+  renderPresetGrid('presetGrid', false);
+  renderPresetGrid('mobilePresetGrid', true);
+}
+function setExportAvailability(){
+  const enabled = state.stage==='filter' && !!state.croppedBase;
+  ['exportConfirmBtn','mobileExportConfirmBtn'].forEach(id=>{ const node=el(id); if(node) node.disabled = !enabled; });
+  const presetWrap = document.querySelector('.group-presets');
+  const exportWrap = document.querySelector('.group-export');
+  const mobileZone = el('mobileFilterZone');
+  if(presetWrap) presetWrap.classList.toggle('disabled-zone', !enabled);
+  if(exportWrap) exportWrap.classList.toggle('disabled-zone', !enabled);
+  if(mobileZone) mobileZone.classList.toggle('disabled-zone', !enabled);
+  const mobileAdvancedSummary = el('mobileAdvancedSummary');
+  if(mobileAdvancedSummary) mobileAdvancedSummary.classList.toggle('disabled', !enabled);
+  if(!enabled) resetExportFlow();
+  updateExportFlowUI();
+}
+function getExportTypeDefs(){
+  return [
+    {key:'png', label:tr('exportPng'), hint:''},
+    {key:'jpeg', label:tr('exportJpg'), hint:''},
+    {key:'pdf', label:tr('exportPdf'), hint:''}
+  ];
+}
+function getExportTypeHelp(){
+  const dict = {
+    tr:'PNG: En yüksek kalite, dosya daha büyük olabilir. JPEG: Daha küçük dosya, kayıplı sıkıştırma. PDF: Paylaşım ve belge gönderimi için uygun.',
+    en:'PNG: Highest quality, file can be larger. JPEG: Smaller file with lossy compression. PDF: Good for sharing and sending documents.',
+    de:'PNG: Höchste Qualität, Datei kann größer sein. JPEG: Kleinere Datei mit verlustbehafteter Komprimierung. PDF: Gut zum Teilen und Versenden von Dokumenten.',
+    ar:'PNG: أعلى جودة وقد يكون حجمه أكبر. JPEG: ملف أصغر مع ضغط فقدي. PDF: مناسب للمشاركة وإرسال المستندات.',
+    es:'PNG: Máxima calidad, el archivo puede ser más grande. JPEG: Archivo más pequeño con compresión con pérdida. PDF: Adecuado para compartir y enviar documentos.',
+    zh:'PNG：最高质量，文件可能更大。JPEG：文件更小，但为有损压缩。PDF：适合分享和发送文档。',
+    ja:'PNG: 最高画質で、ファイルサイズは大きくなることがあります。JPEG: より小さいファイルで非可逆圧縮です。PDF: 共有や書類送付に向いています。',
+    fr:'PNG : qualité maximale, fichier potentiellement plus volumineux. JPEG : fichier plus léger avec compression avec perte. PDF : adapté au partage et à l’envoi de documents.'
+  };
+  return dict[state.lang] || dict.en;
+}
+function getExportQualityDefs(){
+  return [
+    {key:'low', label:tr('exportQualityLow'), hint:tr('exportQualityLowHint')},
+    {key:'medium', label:tr('exportQualityMedium'), hint:tr('exportQualityMediumHint')},
+    {key:'high', label:tr('exportQualityHigh'), hint:tr('exportQualityHighHint')}
+  ];
+}
+function getQualitySettings(type, quality){
+  const map = {
+    png:{low:{scale:.72}, medium:{scale:.88}, high:{scale:1}},
+    jpeg:{low:{scale:.72, quality:.72}, medium:{scale:.88, quality:.86}, high:{scale:1, quality:.96}},
+    pdf:{low:{scale:.72, imageQuality:.72}, medium:{scale:.88, imageQuality:.86}, high:{scale:1, imageQuality:.96}}
+  };
+  return map[type]?.[quality] || map.jpeg.high;
+}
+function resetExportFlow(){
+  state.exportChoice = {type:'', quality:''};
+}
+function renderExportOptions(containerId, defs, activeKey, onSelect){
+  const wrap = el(containerId);
+  if(!wrap) return;
+  wrap.innerHTML='';
+  defs.forEach(item=>{
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='export-option'+(activeKey===item.key?' active':'');
+    btn.innerHTML=item.hint ? `<strong>${item.label}</strong><span>${item.hint}</span>` : `<strong>${item.label}</strong>`;
+    btn.onclick=()=>onSelect(item.key);
+    wrap.appendChild(btn);
+  });
+}
+function updateExportFlowUI(){
+  const enabled = state.stage==='filter' && !!state.croppedBase;
+  const typeSelected = !!state.exportChoice.type;
+  const qualitySelected = !!state.exportChoice.quality;
+  renderExportOptions('exportTypeOptions', getExportTypeDefs(), state.exportChoice.type, key=>{ state.exportChoice.type=key; state.exportChoice.quality=''; updateExportFlowUI(); });
+  renderExportOptions('mobileExportTypeOptions', getExportTypeDefs(), state.exportChoice.type, key=>{ state.exportChoice.type=key; state.exportChoice.quality=''; updateExportFlowUI(); });
+  renderExportOptions('exportQualityOptions', getExportQualityDefs(), state.exportChoice.quality, key=>{ state.exportChoice.quality=key; updateExportFlowUI(); });
+  renderExportOptions('mobileExportQualityOptions', getExportQualityDefs(), state.exportChoice.quality, key=>{ state.exportChoice.quality=key; updateExportFlowUI(); });
+  if(el('exportConfirmBtn')) el('exportConfirmBtn').textContent = tr('exportConfirm');
+  if(el('mobileExportConfirmBtn')) el('mobileExportConfirmBtn').textContent = tr('exportConfirm');
+  if(el('exportTypeHelp')) el('exportTypeHelp').textContent = getExportTypeHelp();
+  if(el('mobileExportTypeHelp')) el('mobileExportTypeHelp').textContent = getExportTypeHelp();
+  if(el('exportNote')) el('exportNote').textContent = tr('exportNote');
+  if(el('mobileExportNote')) el('mobileExportNote').textContent = tr('exportNote');
+  const summaryText = typeSelected ? `${tr('exportSummaryPrefix')}: ${state.exportChoice.type.toUpperCase()}${qualitySelected ? ' · ' + (getExportQualityDefs().find(x=>x.key===state.exportChoice.quality)?.label || '') : ''}` : tr('exportChooseQuality');
+  if(el('exportSummary')) el('exportSummary').textContent = summaryText;
+  if(el('mobileExportSummary')) el('mobileExportSummary').textContent = summaryText;
+  if(el('exportStepType')) el('exportStepType').classList.toggle('active', enabled);
+  if(el('mobileExportStepType')) el('mobileExportStepType').classList.toggle('active', enabled);
+  if(el('exportStepQuality')) el('exportStepQuality').classList.toggle('active', enabled && typeSelected);
+  if(el('mobileExportStepQuality')) el('mobileExportStepQuality').classList.toggle('active', enabled && typeSelected);
+  if(el('exportConfirmBtn')) el('exportConfirmBtn').disabled = !(enabled && typeSelected && qualitySelected);
+  if(el('mobileExportConfirmBtn')) el('mobileExportConfirmBtn').disabled = !(enabled && typeSelected && qualitySelected);
+}
+function applyExportTexts(){ updateExportFlowUI(); }
+function buildControls(){
+  const enabled = state.stage==='filter' && !!state.croppedBase;
+  ['controls','mobileControls'].forEach((id)=>{
+    const wrap=el(id);
+    if(!wrap) return;
+    wrap.innerHTML='';
+    controlDefs.forEach(([key,min,max,step])=>{
+      const valueId = `${id}_v_${key}`;
+      const row=document.createElement('div'); row.className='control';
+      row.innerHTML=`<label><span>${tr('control_'+key)}</span><span id="${valueId}"></span></label><input data-key="${key}" type="range" min="${min}" max="${max}" step="${step}" ${enabled?'':'disabled'}>`;
+      wrap.appendChild(row);
+      const input=row.querySelector('input');
+      const valueEl=row.querySelector('#'+valueId);
+      input.value=state.settings[key]; valueEl.textContent=(Math.round(state.settings[key]*100)/100).toString();
+      input.oninput=(e)=>{
+        const k=e.target.dataset.key;
+        state.activePreset='';
+        state.settings[k]=['gamma','saturation','sharpen'].includes(k)?parseFloat(e.target.value):Number(e.target.value);
+        invalidateFilterCache();
+        buildPresets();
+        buildControls();
+        if(state.stage==='filter') draw();
+      };
+    });
+  });
+}
+
+async function loadFile(file){
+  if(!file) return;
+  if(state.imageUrl) URL.revokeObjectURL(state.imageUrl);
+  const url=URL.createObjectURL(file); const img=new Image(); img.decoding='async';
+  img.onload = async()=>{
+    state.image=img; state.imageUrl=url;
+    try{
+      state.imageBitmap = (window.createImageBitmap ? await createImageBitmap(file) : img);
+    }catch(err){
+      state.imageBitmap = img;
+    }
+    state.sourceFileName = (file.name||'scan').replace(/\.[^.]+$/,'');
+    state.stage='crop'; state.croppedBase=null; state.cropMeta=null; state.filteredPreview=null; state.filteredPreviewKey=''; state.fullCropCache=null; state.fullCropCacheKey=''; state.settings={...presetDefs.original}; state.activePreset='original'; state.view={baseScale:1,scale:1,offsetX:0,offsetY:0,width:1,height:1}; state.isPanning=false; state.panStart=null; state.activePointers=new Map(); state.pinchStart=null;
+    resetPoints(); resizeCanvas(); updateTexts(); draw();
+  };
+  img.src=url;
+}
+function resetPoints(){
+  if(!state.image) return;
+  const detected = detectDocumentCorners();
+  if(detected){ state.points = detected; return; }
+  const mx=state.image.naturalWidth*0.08, my=state.image.naturalHeight*0.08;
+  state.points=[{x:mx,y:my},{x:state.image.naturalWidth-mx,y:my},{x:state.image.naturalWidth-mx,y:state.image.naturalHeight-my},{x:mx,y:state.image.naturalHeight-my}];
+}
+function autoDetectCorners(){
+  if(!state.image) return;
+  const detected = detectDocumentCorners();
+  if(detected) state.points = detected;
+  else resetPoints();
+  updateInfo();
+  draw();
+}
+function resizeCanvas(){
+  const rect = canvas.parentElement.getBoundingClientRect(); const dpr=Math.max(1,window.devicePixelRatio||1);
+  canvas.width=Math.round(rect.width*dpr); canvas.height=Math.round(rect.height*dpr); canvas.style.width=rect.width+'px'; canvas.style.height=rect.height+'px'; ctx.setTransform(dpr,0,0,dpr,0,0);
+  const active = getActiveStageSize();
+  if(active){
+    const s=Math.min(rect.width/active.width, rect.height/active.height);
+    const prevBase = state.view.baseScale || s;
+    const zoomRatio = state.view.scale ? state.view.scale / prevBase : 1;
+    state.view.baseScale = s;
+    state.view.scale = s * zoomRatio;
+    state.view.width = active.width * state.view.scale;
+    state.view.height = active.height * state.view.scale;
+    if(!state.view.offsetX && !state.view.offsetY){
+      state.view.offsetX=(rect.width-state.view.width)/2; state.view.offsetY=(rect.height-state.view.height)/2;
+    }
+    clampViewOffsets();
+  }
+}
+function clearCanvas(){ ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.restore(); }
+function drawEmpty(rect){ const g=ctx.createLinearGradient(0,0,rect.width,rect.height); g.addColorStop(0,'rgba(13,109,103,.16)'); g.addColorStop(1,'rgba(148,109,42,.09)'); ctx.fillStyle=g; ctx.fillRect(0,0,rect.width,rect.height); ctx.strokeStyle='rgba(128,128,128,.35)'; ctx.lineWidth=2; ctx.setLineDash([8,10]); ctx.strokeRect(28,28,rect.width-56,rect.height-56); ctx.setLineDash([]); ctx.fillStyle=css('--text'); ctx.textAlign='center'; ctx.font='700 26px Inter, Arial'; ctx.fillText('PhotoScanner Web', rect.width/2, rect.height/2 - 10); ctx.fillStyle=css('--muted'); ctx.font='500 15px Inter, Arial'; ctx.fillText(tr('upload'), rect.width/2, rect.height/2 + 22); }
+function draw(){ clearCanvas(); const rect=canvas.getBoundingClientRect(); if(!state.image){ drawEmpty(rect); return; } if(state.stage==='filter' && state.croppedBase){ drawFilteredPreview(rect.width, rect.height); return; } drawCropStage(); }
+function drawCropStage(){ const v=state.view; ctx.drawImage(state.image,v.offsetX,v.offsetY,v.width,v.height); if(state.points.length!==4) return; const pts=state.points.map(imageToCanvas); ctx.save(); ctx.fillStyle='rgba(0,0,0,.42)'; ctx.beginPath(); ctx.rect(0,0,canvas.clientWidth,canvas.clientHeight); ctx.moveTo(pts[0].x,pts[0].y); for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y); ctx.closePath(); ctx.fill('evenodd'); ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y); for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y); ctx.closePath(); ctx.strokeStyle=css('--accent'); ctx.lineWidth=2.4; ctx.setLineDash([8,6]); ctx.stroke(); ctx.setLineDash([]);
+  pts.forEach((p,i)=>{ const active=i===state.dragging||i===state.hover; ctx.beginPath(); ctx.fillStyle=active?'#fff':css('--panel-2'); ctx.strokeStyle=active?css('--accent'):'rgba(255,255,255,.8)'; ctx.lineWidth=active?4:3; ctx.arc(p.x,p.y,active?11:9,0,Math.PI*2); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.fillStyle=css('--accent'); ctx.arc(p.x,p.y,4,0,Math.PI*2); ctx.fill(); }); ctx.restore(); drawMagnifier(); }
+function drawMagnifier(){ const idx=state.dragging>=0?state.dragging:state.hover; if(idx<0||state.stage!=='crop') return; const pt=state.points[idx], cp=imageToCanvas(pt), zoom=3.4, radius=78, srcR=radius/zoom; let cx=cp.x+110, cy=cp.y-104; if(cx+radius>canvas.clientWidth-12) cx=cp.x-110; if(cx-radius<12) cx=radius+12; if(cy-radius<12) cy=cp.y+104; if(cy+radius>canvas.clientHeight-12) cy=canvas.clientHeight-radius-12;
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,radius,0,Math.PI*2); ctx.clip(); ctx.drawImage(state.image, Math.max(0,pt.x-srcR), Math.max(0,pt.y-srcR), Math.min(state.image.naturalWidth-Math.max(0,pt.x-srcR),srcR*2), Math.min(state.image.naturalHeight-Math.max(0,pt.y-srcR),srcR*2), cx-radius,cy-radius,radius*2,radius*2); ctx.fillStyle='rgba(0,0,0,.08)'; ctx.fillRect(cx-radius,cy-1,radius*2,2); ctx.fillRect(cx-1,cy-radius,2,radius*2); ctx.restore(); ctx.beginPath(); ctx.arc(cx,cy,radius,0,Math.PI*2); ctx.strokeStyle='#fff'; ctx.lineWidth=5; ctx.stroke(); ctx.beginPath(); ctx.arc(cx,cy,radius,0,Math.PI*2); ctx.strokeStyle=css('--accent'); ctx.lineWidth=2; ctx.stroke(); }
+function drawFilteredPreview(w,h){ const preview = getFilteredPreviewCanvas(); if(!preview) return; ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; ctx.drawImage(preview,state.view.offsetX,state.view.offsetY,state.view.width,state.view.height); }
+
+function findHandle(pos){ return state.points.findIndex(p=>{ const c=imageToCanvas(p); return Math.hypot(pos.x-c.x,pos.y-c.y)<=22; }); }
+function onPointerDown(e){
+  if(!getActiveStageSize()) return;
+  const pos=getPointerPos(e);
+  state.activePointers.set(e.pointerId, pos);
+  canvas.setPointerCapture(e.pointerId);
+  if(state.activePointers.size >= 2){
+    state.dragging = -1;
+    state.isPanning = false;
+    state.panStart = null;
+    refreshPinchStart();
+    draw();
+    return;
+  }
+  if(state.stage==='crop'){
+    const hit=findHandle(pos);
+    if(hit>=0){ state.dragging=hit; draw(); return; }
+  }
+  state.isPanning=true;
+  state.panStart={x:pos.x,y:pos.y,offsetX:state.view.offsetX,offsetY:state.view.offsetY};
+}
+function onPointerMove(e){
+  if(!getActiveStageSize()) return;
+  const pos=getPointerPos(e);
+  if(state.activePointers.has(e.pointerId)) state.activePointers.set(e.pointerId, pos);
+  if(state.activePointers.size >= 2){
+    const pts = [...state.activePointers.values()].slice(0,2);
+    const center = pointerCenter(pts[0], pts[1]);
+    const dist = Math.max(1, pointerDistance(pts[0], pts[1]));
+    if(!state.pinchStart) refreshPinchStart();
+    const nextScale = state.pinchStart.scale * (dist / state.pinchStart.distance);
+    setZoom(nextScale, center);
+    return;
+  }
+  if(state.stage==='crop' && state.dragging>=0){ state.points[state.dragging]=canvasToImage(pos); updateInfo(); draw(); return; }
+  if(state.isPanning && state.panStart){
+    state.view.offsetX = state.panStart.offsetX + (pos.x - state.panStart.x);
+    state.view.offsetY = state.panStart.offsetY + (pos.y - state.panStart.y);
+    clampViewOffsets();
+    draw();
+    return;
+  }
+  state.hover = state.stage==='crop' ? findHandle(pos) : -1;
+  draw();
+}
+function onPointerUp(e){
+  state.activePointers.delete(e.pointerId);
+  if(canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+  if(state.activePointers.size >= 2){ refreshPinchStart(); draw(); return; }
+  state.pinchStart = null;
+  if(state.dragging>=0){ state.dragging=-1; draw(); return; }
+  if(state.isPanning){ state.isPanning=false; state.panStart=null; draw(); return; }
+  draw();
+}
+
+function updateInfo(){
+  el('sourceInfo').textContent = state.image ? `${state.image.naturalWidth} × ${state.image.naturalHeight}` : '—';
+  if(state.stage==='crop' && state.points.length===4){ const s=outputSizeFromPoints(); el('outputInfo').textContent=`${s.width} × ${s.height}`; }
+  else if(state.stage==='filter' && state.croppedBase){ el('outputInfo').textContent=`${state.croppedBase.width} × ${state.croppedBase.height}`; }
+  else el('outputInfo').textContent='—';
+}
+
+function solveLinearSystem(A,b){ const n=b.length, M=A.map((row,i)=>[...row,b[i]]); for(let col=0;col<n;col++){ let pivot=col; for(let row=col+1;row<n;row++) if(Math.abs(M[row][col])>Math.abs(M[pivot][col])) pivot=row; [M[col],M[pivot]]=[M[pivot],M[col]]; const factor=M[col][col]||1e-12; for(let j=col;j<=n;j++) M[col][j]/=factor; for(let row=0;row<n;row++){ if(row===col) continue; const scale=M[row][col]; for(let j=col;j<=n;j++) M[row][j]-=scale*M[col][j]; }} return M.map(r=>r[n]); }
+function solveHomography(src,dst){ const A=[], b=[]; for(let i=0;i<4;i++){ const {x,y}=src[i], u=dst[i].x, v=dst[i].y; A.push([x,y,1,0,0,0,-u*x,-u*y]); b.push(u); A.push([0,0,0,x,y,1,-v*x,-v*y]); b.push(v); } const h=solveLinearSystem(A,b); return [h[0],h[1],h[2],h[3],h[4],h[5],h[6],h[7],1]; }
+function invert3x3(m){ const [a,b,c,d,e,f,g,h,i]=m; const A=e*i-f*h,B=-(d*i-f*g),C=d*h-e*g,D=-(b*i-c*h),E=a*i-c*g,F=-(a*h-b*g),G=b*f-c*e,H=-(a*f-c*d),I=a*e-b*d; const det=a*A+b*B+c*C; if(Math.abs(det)<1e-12) return null; const q=1/det; return [A*q,D*q,G*q,B*q,E*q,H*q,C*q,F*q,I*q]; }
+function mapPoint(m,x,y){ const d=m[6]*x+m[7]*y+m[8]; return {x:(m[0]*x+m[1]*y+m[2])/d, y:(m[3]*x+m[4]*y+m[5])/d}; }
+function getPixel(data,width,x,y){ const i=(y*width+x)*4; return [data[i],data[i+1],data[i+2],data[i+3]]; }
+function bilinearSample(data,width,height,x,y){ const cx=clamp(x,0,width-1), cy=clamp(y,0,height-1), x0=Math.floor(cx), y0=Math.floor(cy), x1=Math.min(width-1,x0+1), y1=Math.min(height-1,y0+1), dx=cx-x0, dy=cy-y0; const p00=getPixel(data,width,x0,y0), p10=getPixel(data,width,x1,y0), p01=getPixel(data,width,x0,y1), p11=getPixel(data,width,x1,y1); const top=p00.map((v,i)=>v*(1-dx)+p10[i]*dx), bottom=p01.map((v,i)=>v*(1-dx)+p11[i]*dx); return top.map((v,i)=>Math.round(v*(1-dy)+bottom[i]*dy)); }
+
+async function cropNow(){
+  if(!state.image || state.points.length!==4 || state.busy) return;
+  await runWithLoading(tr('loadingCrop'), async () => {
+    const out = outputSizeFromPoints();
+    state.cropMeta = { points: clonePoints(state.points), width: out.width, height: out.height };
+    invalidateFullCropCache();
+    invalidateFilterCache();
+    const previewSize = getPreviewCropSize(out, 2000);
+    const previewCanvas = createCroppedCanvas({ width: previewSize.width, height: previewSize.height });
+    if(!previewCanvas) return;
+    state.croppedBase = previewCanvas;
+    state.stage='filter';
+    state.view={baseScale:1,scale:1,offsetX:0,offsetY:0,width:1,height:1};
+    resizeCanvas();
+    updateTexts();
+    draw();
+  });
+}
+
+function applyFiltersToData(data,width,height,settings){
+  const gamma=Math.max(.01,settings.gamma||1), gammaPow=1/gamma, brightness=settings.brightness||0, contrast=(259*((settings.contrast||0)+255))/(255*(259-(settings.contrast||0))), saturation=settings.saturation??1, mode=settings.mode||'color', threshold=settings.threshold??165;
+  for(let i=0;i<data.length;i+=4){ let r=data[i], g=data[i+1], b=data[i+2]; r=255*Math.pow(r/255,gammaPow); g=255*Math.pow(g/255,gammaPow); b=255*Math.pow(b/255,gammaPow); r=contrast*(r-128)+128+brightness; g=contrast*(g-128)+128+brightness; b=contrast*(b-128)+128+brightness; const gray=.2126*r+.7152*g+.0722*b; r=gray+(r-gray)*saturation; g=gray+(g-gray)*saturation; b=gray+(b-gray)*saturation; if(mode==='gray'||mode==='bw'){ const mix=mode==='bw'?1:.92; const lum=.2126*r+.7152*g+.0722*b; r=g=b=lum*mix+255*(1-mix)*.02; } if(mode==='threshold'){ const lum=.2126*r+.7152*g+.0722*b; const v=lum>threshold?255:0; r=g=b=v; } if(mode==='doc'){ const boost=gray>180?1.08:1; r=r*boost+4; g=g*boost+4; b=b*boost+4; } data[i]=clamp(Math.round(r),0,255); data[i+1]=clamp(Math.round(g),0,255); data[i+2]=clamp(Math.round(b),0,255); }
+  const amount=settings.sharpen||0; if(amount>.001) applySharpen(data,width,height,amount);
+}
+function applySharpen(data,width,height,amount){ const original=new Uint8ClampedArray(data); const k=[0,-1,0,-1,5,-1,0,-1,0]; for(let y=1;y<height-1;y++) for(let x=1;x<width-1;x++){ let r=0,g=0,b=0,n=0; for(let ky=-1;ky<=1;ky++) for(let kx=-1;kx<=1;kx++){ const idx=((y+ky)*width+(x+kx))*4, w=k[n++]; r+=original[idx]*w; g+=original[idx+1]*w; b+=original[idx+2]*w; } const i=(y*width+x)*4; data[i]=clamp(Math.round(original[i]*(1-amount)+r*amount),0,255); data[i+1]=clamp(Math.round(original[i+1]*(1-amount)+g*amount),0,255); data[i+2]=clamp(Math.round(original[i+2]*(1-amount)+b*amount),0,255); } }
+function renderFilteredCanvas(options={}){
+  if(options.mode==='export') return buildExportCanvas();
+  return getFilteredPreviewCanvas();
+}
+function recrop(){ if(!state.image) return; state.stage='crop'; state.croppedBase=null; state.cropMeta=null; resetExportFlow(); invalidateFilterCache(); invalidateFullCropCache(); state.view={baseScale:1,scale:1,offsetX:0,offsetY:0,width:1,height:1}; resizeCanvas(); updateTexts(); draw(); }
+function resetAll(){
+  if(state.imageUrl) URL.revokeObjectURL(state.imageUrl);
+  state.image=null; state.imageUrl=''; state.imageBitmap=null; state.points=[]; state.hover=-1; state.dragging=-1;
+  state.stage='empty'; state.croppedBase=null; state.cropMeta=null; state.filteredPreview=null; state.filteredPreviewKey=''; state.fullCropCache=null; state.fullCropCacheKey='';
+  state.settings={...presetDefs.original}; state.activePreset='original'; resetExportFlow(); state.view={baseScale:1,scale:1,offsetX:0,offsetY:0,width:1,height:1}; state.isPanning=false; state.panStart=null; state.activePointers=new Map(); state.pinchStart=null;
+  state.sourceFileName='scan';
+  el('fileInput').value='';
+  buildPresets(); buildControls(); updateTexts(); resizeCanvas(); draw();
+}
+
+async function exportImage(type, qualityKey='high'){
+  if(!state.croppedBase || state.busy) return;
+  await runWithLoading(tr('loadingDownload'), async () => {
+    const out = renderFilteredCanvas({mode:'export'});
+    const settings = getQualitySettings(type, qualityKey);
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = Math.max(32, Math.round(out.width * settings.scale));
+    exportCanvas.height = Math.max(32, Math.round(out.height * settings.scale));
+    const ex = exportCanvas.getContext('2d',{willReadFrequently:true});
+    ex.imageSmoothingEnabled = true;
+    ex.imageSmoothingQuality = qualityKey==='high' ? 'high' : 'medium';
+    ex.drawImage(out,0,0,exportCanvas.width,exportCanvas.height);
+    const ext = type==='png' ? 'png' : 'jpg';
+    const mime = type==='png' ? 'image/png' : 'image/jpeg';
+    const encoderQuality = type==='png' ? 1 : settings.quality;
+    const fileName = `${state.sourceFileName}-${qualityKey}-${Date.now()}.${ext}`;
+    try{
+      const dataUrl = exportCanvas.toDataURL(mime, encoderQuality);
+      downloadDataUrl(dataUrl, fileName);
+    }catch(err){
+      exportCanvas.toBlob(blob=>downloadBlob(blob, fileName), mime, encoderQuality);
+    }
+  });
+}
+async function exportPdf(qualityKey='high'){
+  if(!state.croppedBase || state.busy) return;
+  await runWithLoading(tr('loadingDownload'), async () => {
+    const out = renderFilteredCanvas({mode:'export'});
+    const settings = getQualitySettings('pdf', qualityKey);
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = Math.max(32, Math.round(out.width * settings.scale));
+    exportCanvas.height = Math.max(32, Math.round(out.height * settings.scale));
+    const ex = exportCanvas.getContext('2d',{willReadFrequently:true});
+    ex.imageSmoothingEnabled = true;
+    ex.imageSmoothingQuality = qualityKey==='high' ? 'high' : 'medium';
+    ex.drawImage(out,0,0,exportCanvas.width,exportCanvas.height);
+    const imgData = exportCanvas.toDataURL('image/jpeg', settings.imageQuality);
+    const { jsPDF } = window.jspdf;
+    const orientation = exportCanvas.width>=exportCanvas.height ? 'landscape' : 'portrait';
+    const pdf = new jsPDF({orientation, unit:'pt', format:[exportCanvas.width, exportCanvas.height], compress:true});
+    pdf.addImage(imgData, 'JPEG', 0, 0, exportCanvas.width, exportCanvas.height, undefined, 'MEDIUM');
+    pdf.save(`${state.sourceFileName}-${qualityKey}-${Date.now()}.pdf`);
+  });
+}
+async function exportSelected(){
+  if(!state.exportChoice.type || !state.exportChoice.quality) return;
+  if(state.exportChoice.type==='pdf') return exportPdf(state.exportChoice.quality);
+  return exportImage(state.exportChoice.type, state.exportChoice.quality);
+}
+function downloadDataUrl(dataUrl, name){
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = name;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+function downloadBlob(blob,name){
+  if(!blob) return;
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = u;
+  a.download = name;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ a.remove(); URL.revokeObjectURL(u); }, 1500);
+}
+
+function bind(){
+  el('fileInput').addEventListener('click', e => { e.target.value = ''; });
+  el('fileInput').addEventListener('change',e=>loadFile(e.target.files?.[0]));
+  const resetFilters = ()=>{ if(!(state.stage==='filter' && state.croppedBase)) return; state.activePreset='original'; state.settings={...presetDefs.original}; invalidateFilterCache(); buildPresets(); buildControls(); updateTexts(); if(state.stage==='filter') draw(); };
+  el('cropBtn').addEventListener('click', () => cropNow()); el('recropBtn').addEventListener('click',recrop); el('resetAllBtn').addEventListener('click',resetAll); el('resetFiltersBtn').addEventListener('click',resetFilters); if(el('mobileResetFiltersBtn')) el('mobileResetFiltersBtn').addEventListener('click',resetFilters);
+  el('exportConfirmBtn').addEventListener('click',()=>exportSelected()); el('mobileExportConfirmBtn').addEventListener('click',()=>exportSelected());
+  canvas.addEventListener('pointerdown',onPointerDown); canvas.addEventListener('pointermove',onPointerMove); window.addEventListener('pointerup',onPointerUp); window.addEventListener('pointercancel',onPointerUp); canvas.addEventListener('pointerleave',()=>{ if(state.dragging<0 && !state.isPanning){ state.hover=-1; draw(); } });
+  canvas.addEventListener('wheel', (e)=>{ if(!getActiveStageSize()) return; e.preventDefault(); const pos=getPointerPos(e); const factor = e.deltaY < 0 ? 1.12 : 0.89; setZoom(state.view.scale * factor, pos); }, { passive:false });
+  window.addEventListener('resize',()=>{ resizeCanvas(); updateMobileStepUI(); draw(); });
+  el('themeBtn').addEventListener('click',()=>{ state.theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme',state.theme); updateTexts(); draw(); });
+  el('langTrigger').addEventListener('click',()=> el('langMenu').classList.contains('open') ? closeLang() : openLang()); document.addEventListener('click',e=>{ if(!e.target.closest('.lang-box')) closeLang(); });
+}
+
+function init(){ document.documentElement.setAttribute('data-theme','light'); state.theme='light'; try{ const saved=localStorage.getItem('photoscanner_lang'); if(saved && i18n[saved]) state.lang=saved; }catch(e){} buildLangMenu(); updateTexts(); bind(); resizeCanvas(); draw(); }
+init();
+</script>
+</body>
+</html>
